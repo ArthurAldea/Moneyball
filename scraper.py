@@ -13,7 +13,7 @@ import asyncio
 import requests
 import pandas as pd
 from curl_cffi import requests as cf_requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -63,6 +63,47 @@ def _fbref_cache_path(league: str, table: str, season: str) -> str:
     os.makedirs(CACHE_DIR, exist_ok=True)
     filename = f"fbref_{league}_{table}_{season}.csv"
     return os.path.join(CACHE_DIR, filename)
+
+
+# ── FBref HTTP helpers ────────────────────────────────────────────────────────
+
+def _fetch_with_backoff(url: str, headers: dict) -> requests.Response:
+    """
+    Fetch a URL with exponential backoff on HTTP 429.
+
+    Backoff sequence (DATA-06): 30s → 60s → 120s.
+    After the third 429, raises RuntimeError rather than hanging indefinitely.
+
+    Args:
+        url:     Full URL to fetch.
+        headers: HTTP request headers dict (must include User-Agent).
+
+    Returns:
+        requests.Response with status 200.
+
+    Raises:
+        RuntimeError: If 429 persists after all backoff attempts.
+        requests.HTTPError: For non-200, non-429 responses.
+    """
+    from config import FBREF_BACKOFF_SEQUENCE
+    delays = FBREF_BACKOFF_SEQUENCE  # [30, 60, 120]
+
+    for attempt, delay in enumerate(delays + [None]):
+        resp = requests.get(url, headers=headers, timeout=30)
+        if resp.status_code == 429:
+            if delay is None:
+                raise RuntimeError(
+                    f"FBref returned 429 after {len(delays)} retries — "
+                    f"aborting fetch of: {url}"
+                )
+            print(f"  [warn] 429 Too Many Requests — backing off {delay}s "
+                  f"(attempt {attempt + 1}/{len(delays)}): {url}")
+            time.sleep(delay)
+            continue
+        resp.raise_for_status()
+        return resp
+
+    raise RuntimeError("Unreachable")
 
 
 # ── FBref stubs (implemented in Plan 01-02) ───────────────────────────────────
