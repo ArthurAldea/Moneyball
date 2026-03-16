@@ -106,6 +106,70 @@ def _fetch_with_backoff(url: str, headers: dict) -> requests.Response:
     raise RuntimeError("Unreachable")
 
 
+def _extract_fbref_table(html: str, table_id: str) -> pd.DataFrame:
+    """
+    Extract a stats table from FBref HTML, handling comment-wrapping and
+    multi-level column headers.
+
+    FBref embeds most stat tables inside HTML comments. A direct soup.find()
+    returns None — this function searches Comment nodes as a fallback.
+
+    Column header strategy:
+      - Use pd.read_html(..., header=1) to skip the group-label row and use
+        the stat-name row directly as column names.
+      - If duplicate column names result (e.g. defense table has two "Tkl"
+        columns for "Tackles" and "Challenges" groups), pandas auto-appends
+        ".1", ".2" suffixes — the first occurrence is the authoritative total.
+      - Repeat header rows (rows where Rk == "Rk") are removed.
+
+    Args:
+        html:     Full HTML page text.
+        table_id: FBref table id attribute, e.g. "stats_standard_9".
+
+    Returns:
+        pd.DataFrame with flattened column names and no repeat header rows.
+
+    Raises:
+        ValueError: If the table_id is not found in the page or its comments.
+    """
+    soup = BeautifulSoup(html, "lxml")
+
+    # Pass 1: direct lookup (some FBref tables are not comment-wrapped)
+    table = soup.find("table", {"id": table_id})
+
+    # Pass 2: search inside HTML comment blocks
+    if table is None:
+        for comment in soup.find_all(string=lambda t: isinstance(t, Comment)):
+            if table_id in comment:
+                comment_soup = BeautifulSoup(str(comment), "lxml")
+                table = comment_soup.find("table", {"id": table_id})
+                if table is not None:
+                    break
+
+    if table is None:
+        raise ValueError(
+            f"FBref table '{table_id}' not found in page HTML. "
+            f"The page structure may have changed or the wrong URL was requested."
+        )
+
+    # Parse with header=1 to use the stat-name row (row index 1) as column headers,
+    # skipping the group-label row (row index 0).
+    df = pd.read_html(str(table), header=1)[0]
+
+    # If columns are still tuples (MultiIndex survived), flatten them.
+    if isinstance(df.columns[0], tuple):
+        df.columns = [
+            col[1] if (col[1] and not str(col[1]).startswith("Unnamed")) else col[0]
+            for col in df.columns
+        ]
+
+    # Remove repeated header rows (FBref repeats the header every ~20 rows).
+    if "Rk" in df.columns:
+        df = df[df["Rk"] != "Rk"].reset_index(drop=True)
+
+    return df
+
+
 # ── FBref stubs (implemented in Plan 01-02) ───────────────────────────────────
 
 def scrape_fbref_stat(table_type: str, season_label: str, league: str = "EPL") -> "pd.DataFrame":
