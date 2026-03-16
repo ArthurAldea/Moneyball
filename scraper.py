@@ -276,15 +276,54 @@ def scrape_fbref_stat(
     return df
 
 
-def run_fbref_scrapers(league: str = "EPL") -> dict:
-    """Scrape all FBref tables for all configured seasons. Returns {table_type: {season: DataFrame}}."""
-    from config import FBREF_TABLES, FBREF_SEASONS
+def run_fbref_scrapers(
+    leagues: list | None = None,
+    seasons: list | None = None,
+) -> dict:
+    """
+    Scrape all FBref stat tables for the given leagues and seasons.
+
+    Iterates serially over leagues → seasons → tables, calling scrape_fbref_stat
+    for each combination. Each table is cached independently; a network failure
+    on one table does not abort the remaining tables (DATA-05).
+
+    Rate limiting (DATA-06): scrape_fbref_stat inserts a random 3.5–6.0s delay
+    before each HTTP request. Total cold run: 8 tables × 2 seasons = 16 requests
+    ≈ 80–100 seconds.
+
+    Args:
+        leagues: List of league keys to scrape (default: ["EPL"]).
+                 Only "EPL" is supported in Phase 1.
+        seasons: List of season labels to scrape (default: FBREF_SEASONS =
+                 ["2023-24", "2024-25"]).
+
+    Returns:
+        Nested dict: {league: {season: {table_type: pd.DataFrame}}}
+        Example: result["EPL"]["2024-25"]["stats_standard"] -> DataFrame
+    """
+    from config import FBREF_LEAGUES, FBREF_TABLES, FBREF_SEASONS
+
+    if leagues is None:
+        leagues = list(FBREF_LEAGUES.keys())   # ["EPL"]
+    if seasons is None:
+        seasons = FBREF_SEASONS                # ["2023-24", "2024-25"]
+
     results = {}
-    for table_type in FBREF_TABLES:
-        results[table_type] = {}
-        for season_label in FBREF_SEASONS:
-            print(f"\n[FBref] {league} {table_type} {season_label}")
-            results[table_type][season_label] = scrape_fbref_stat(table_type, season_label, league)
+
+    for league in leagues:
+        print(f"\n[FBref] League: {league}")
+        results[league] = {}
+
+        for season in seasons:
+            print(f"\n  Season: {season}")
+            results[league][season] = {}
+
+            for table_type in FBREF_TABLES:
+                df = scrape_fbref_stat(table_type, season, league)
+                results[league][season][table_type] = df
+                status = f"{len(df)} rows" if not df.empty else "EMPTY"
+                print(f"    {table_type}: {status}")
+
     return results
 
 
