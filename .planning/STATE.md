@@ -4,7 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 2
 status: planning
-last_updated: "2026-03-16T03:32:32.334Z"
+stopped_at: Phase 2 context gathered
+last_updated: "2026-03-16T03:56:26.737Z"
 progress:
   total_phases: 6
   completed_phases: 1
@@ -59,9 +60,9 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 [████████████████████] 3/3 plans (100%) — Phase 1 complete
 
 ## Session Continuity
-Last session: 2026-03-16
-Stopped at: Phase 1 complete, ready to plan Phase 2
-Resume file: None
+Last session: 2026-03-16T03:56:26.727Z
+Stopped at: Phase 2 context gathered
+Resume file: .planning/phases/02-merger-scorer-rewrite-epl-end-to-end/02-CONTEXT.md
 
 ## Blockers/Concerns
 - ⚠️ [Phase 2] `merger.py` uses old Understat/API-Football column names (`xGChain`, `GoalsConceded`, etc.) — must be remapped to FBref columns (`PrgP`, `GA`, `Save%`) before scoring pipeline runs. `app.py` shows 0 players until this is resolved.
