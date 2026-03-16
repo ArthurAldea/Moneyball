@@ -405,12 +405,17 @@ def scrape_understat_season(season_year: int, season_label: str) -> pd.DataFrame
 
 
 def run_understat_scrapers() -> dict:
-    """Returns {season_label: DataFrame} for all seasons."""
-    data = {}
-    for season_label, season_year in SEASONS.items():
-        print(f"\n[Understat] Season: {season_label}")
-        data[season_label] = scrape_understat_season(season_year, season_label)
-    return data
+    """
+    DEPRECATED — replaced by run_fbref_scrapers() in Phase 1.
+    Returns empty dict. app.py compatibility shim — will be removed in Phase 2
+    when merger.py is rewritten to consume FBref data directly.
+    """
+    print(
+        "[warn] run_understat_scrapers() is deprecated — "
+        "FBref scraper now provides all stats. "
+        "This stub exists for app.py backward compatibility."
+    )
+    return {}
 
 
 # ── API-Football ──────────────────────────────────────────────────────────────
@@ -548,12 +553,17 @@ def scrape_api_football_season(season_year: int, season_label: str) -> pd.DataFr
 
 
 def run_api_football_scrapers() -> dict:
-    """Returns {season_label: DataFrame} for all seasons."""
-    data = {}
-    for season_label, season_year in SEASONS.items():
-        print(f"\n[API-Football] Season: {season_label}")
-        data[season_label] = scrape_api_football_season(season_year, season_label)
-    return data
+    """
+    DEPRECATED — replaced by run_fbref_scrapers() in Phase 1.
+    Returns empty dict. app.py compatibility shim — will be removed in Phase 2
+    when merger.py is rewritten to consume FBref data directly.
+    """
+    print(
+        "[warn] run_api_football_scrapers() is deprecated — "
+        "FBref scraper now provides all stats. "
+        "This stub exists for app.py backward compatibility."
+    )
+    return {}
 
 
 # ── Transfermarkt via curl_cffi — club squad pages ────────────────────────────
@@ -726,17 +736,19 @@ def run_tm_scrapers() -> pd.DataFrame:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("=== Scraping Understat ===")
-    us_data = run_understat_scrapers()
-    ok = sum(1 for df in us_data.values() if not df.empty)
-    print(f"\nUnderstat seasons fetched: {ok}/3")
+    print("=== FBref Scraper — Phase 1 (EPL) ===")
+    results = run_fbref_scrapers()
 
-    print("\n=== Scraping API-Football ===")
-    af_data = run_api_football_scrapers()
-    ok = sum(1 for df in af_data.values() if not df.empty)
-    print(f"\nAPI-Football seasons fetched: {ok}/3")
+    total_tables = 0
+    total_rows   = 0
+    for league, seasons_data in results.items():
+        for season, tables_data in seasons_data.items():
+            for table_type, df in tables_data.items():
+                total_tables += 1
+                total_rows   += len(df)
 
-    print("\n=== Scraping Transfermarkt ===")
+    print(f"\nDone. {total_tables} tables scraped, {total_rows} total player-rows.")
+
+    print("\n=== Transfermarkt ===")
     tm_data = run_tm_scrapers()
     print(f"Transfermarkt players: {len(tm_data)}")
-    print("\nDone.")
