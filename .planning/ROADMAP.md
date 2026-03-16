@@ -4,7 +4,7 @@
 
 | # | Phase | Goal | Requirements | Status |
 |---|-------|------|--------------|--------|
-| 1 | FBref Scraper (EPL) | Replace Understat + API-Football with a complete FBref scraper covering all required stat tables for EPL only | DATA-01 (EPL), DATA-02, DATA-05, DATA-06, DATA-07 | Not Started |
+| 1 | FBref Scraper (EPL) | Replace Understat + API-Football with a complete FBref scraper covering all required stat tables for EPL only | DATA-01 (EPL), DATA-02, DATA-05, DATA-06, DATA-07 | 🔄 In Progress (Plan 01-01 done) |
 | 2 | Merger & Scorer Rewrite (EPL End-to-End) | Rebuild merger and scorer to ingest FBref columns, confirm all pillar models produce sensible scores for EPL, and add age-weighted UV | DATA-03, SCORE-01, SCORE-02, SCORE-03, SCORE-06, SCORE-07 | Not Started |
 | 3 | Multi-League Expansion | Extend scraper and Transfermarkt integration to La Liga, Bundesliga, Serie A, and Ligue 1; add League column throughout the pipeline | DATA-01 (all leagues), DATA-04, DATA-05 (league key) | Not Started |
 | 4 | Advanced Scoring | Apply team strength adjustment and league quality multiplier across the full five-league pool; add cosine similar-player computation | SCORE-04, SCORE-05, SCORE-08 | Not Started |
@@ -16,6 +16,14 @@
 ## Phase Details
 
 ### Phase 1: FBref Scraper (EPL)
+
+**Status:** 🔄 In Progress
+
+| Plan | Title | Status |
+|------|-------|--------|
+| 01-01 | Config & Cache Infrastructure | ✅ Done |
+| 01-02 | FBref Fetch Functions | 🔲 Not Started |
+| 01-03 | TBD | 🔲 Not Started |
 
 **Goal:** Rewrite `scraper.py` to pull all eight required FBref stat tables for EPL from both seasons, write league-keyed CSV cache files, and retire the Understat and API-Football scrapers entirely.
 
