@@ -85,15 +85,41 @@
 
 ## Traceability
 
-*(To be filled in by roadmapper)*
-
 | REQ-ID | Phase |
 |--------|-------|
-| DATA-01 – DATA-07 | — |
-| SCORE-01 – SCORE-08 | — |
-| FILTER-01 – FILTER-06 | — |
-| DASH-01 – DASH-07 | — |
-| PROFILE-01 – PROFILE-05 | — |
+| DATA-01 | Phase 1 (EPL scraper), Phase 3 (multi-league expansion) |
+| DATA-02 | Phase 1 |
+| DATA-03 | Phase 2 |
+| DATA-04 | Phase 3 |
+| DATA-05 | Phase 1 (EPL cache), Phase 3 (league-keyed cache) |
+| DATA-06 | Phase 1 |
+| DATA-07 | Phase 1 |
+| SCORE-01 | Phase 2 |
+| SCORE-02 | Phase 2 |
+| SCORE-03 | Phase 2 |
+| SCORE-04 | Phase 4 |
+| SCORE-05 | Phase 4 |
+| SCORE-06 | Phase 2 |
+| SCORE-07 | Phase 2 |
+| SCORE-08 | Phase 4 |
+| FILTER-01 | Phase 5 |
+| FILTER-02 | Phase 5 |
+| FILTER-03 | Phase 5 |
+| FILTER-04 | Phase 5 |
+| FILTER-05 | Phase 5 |
+| FILTER-06 | Phase 5 |
+| DASH-01 | Phase 5 |
+| DASH-02 | Phase 5 |
+| DASH-03 | Phase 5 |
+| DASH-04 | Phase 5 |
+| DASH-05 | Phase 5 |
+| DASH-06 | Phase 5 |
+| DASH-07 | Phase 5 |
+| PROFILE-01 | Phase 6 |
+| PROFILE-02 | Phase 6 |
+| PROFILE-03 | Phase 6 |
+| PROFILE-04 | Phase 6 |
+| PROFILE-05 | Phase 6 |
 
 ---
 
