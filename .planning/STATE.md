@@ -19,8 +19,9 @@ progress:
 **Last Updated:** 2026-03-16 (Plan 01-03 complete)
 
 ## Project Reference
-See: .planning/PROJECT.md
+See: .planning/PROJECT.md (updated 2026-03-16)
 **Core value:** Surface players whose performance most exceeds their market price — in the right positional and team context.
+**Current focus:** Phase 2 — Merger & Scorer Rewrite (EPL End-to-End)
 
 ## Phase Progress
 
@@ -54,6 +55,14 @@ See: .planning/PROJECT.md
 - **merger.py compute_per90s guard:** Added empty-DataFrame and missing-Min-column checks so build_dataset({}, {}, pd.DataFrame()) does not crash in Phase 1.
 - **app.py shows 0 players in Phase 1:** Expected and acceptable — stubs return {} so merger produces empty output. Phase 2 will rewire load_data to call run_fbref_scrapers.
 
-## Notes
-- Phase 2 blocker: merger.py uses old Understat/API-Football column names (xGChain, GoalsConceded, etc.) — these must be remapped to FBref columns (PrgP, GA, Save%, etc.) in the merger rewrite.
+## Progress
+[████████████████████] 3/3 plans (100%) — Phase 1 complete
+
+## Session Continuity
+Last session: 2026-03-16
+Stopped at: Phase 1 complete, ready to plan Phase 2
+Resume file: None
+
+## Blockers/Concerns
+- ⚠️ [Phase 2] `merger.py` uses old Understat/API-Football column names (`xGChain`, `GoalsConceded`, etc.) — must be remapped to FBref columns (`PrgP`, `GA`, `Save%`) before scoring pipeline runs. `app.py` shows 0 players until this is resolved.
 
