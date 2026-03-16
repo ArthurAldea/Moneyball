@@ -170,16 +170,122 @@ def _extract_fbref_table(html: str, table_id: str) -> pd.DataFrame:
     return df
 
 
-# ── FBref stubs (implemented in Plan 01-02) ───────────────────────────────────
+# ── FBref scraper ─────────────────────────────────────────────────────────────
 
-def scrape_fbref_stat(table_type: str, season_label: str, league: str = "EPL") -> "pd.DataFrame":
-    """Stub — full implementation in Plan 01-02."""
-    return pd.DataFrame()
+def scrape_fbref_stat(
+    table_type: str,
+    season_label: str,
+    league: str = "EPL",
+) -> pd.DataFrame:
+    """
+    Scrape a single FBref stat table for a given league and season, with
+    7-day CSV caching and 900-minute player filter.
+
+    Cache naming (DATA-05):
+        cache/fbref_{league}_{table_type}_{season_label}.csv
+        e.g. cache/fbref_EPL_stats_standard_2024-25.csv
+
+    Rate limiting (DATA-06):
+        Waits random.uniform(FBREF_RATE_MIN, FBREF_RATE_MAX) seconds before
+        each HTTP request. Uses _fetch_with_backoff for 429 handling.
+
+    Min-minutes filter (DATA-07):
+        Removes players with fewer than FBREF_MIN_MINUTES (900) minutes
+        before writing to cache.
+
+    Args:
+        table_type:   FBref table type key, e.g. "stats_standard".
+                      If passed without "stats_" prefix (e.g. "standard"),
+                      the prefix is added automatically for compatibility
+                      with existing test_scraper.py call signature.
+        season_label: Short season label, e.g. "2024-25".
+        league:       League key, default "EPL".
+
+    Returns:
+        pd.DataFrame with player rows qualifying the 900-minute threshold.
+        Returns empty DataFrame on fetch failure (logs warning).
+    """
+    import random
+    from config import (
+        FBREF_LEAGUES, FBREF_TABLE_URL_SEGMENTS, FBREF_MIN_MINUTES,
+        FBREF_RATE_MIN, FBREF_RATE_MAX, FBREF_HEADERS, build_fbref_url,
+    )
+
+    # Normalise table_type: accept both "standard" and "stats_standard"
+    if not table_type.startswith("stats_"):
+        table_type = f"stats_{table_type}"
+
+    path = _fbref_cache_path(league, table_type, season_label)
+
+    if _is_fresh(path):
+        print(f"  [cache] fbref_{league}_{table_type}_{season_label}")
+        return pd.read_csv(path)
+
+    # Build URL and table_id
+    url = build_fbref_url(league, table_type, season_label)
+    comp_id  = FBREF_LEAGUES[league]["comp_id"]
+    table_id = f"{table_type}_{comp_id}"   # e.g. "stats_standard_9"
+
+    print(f"  [fetch] FBref {league} {table_type} {season_label}")
+    print(f"    URL: {url}")
+
+    # Polite delay before request (DATA-06)
+    delay = random.uniform(FBREF_RATE_MIN, FBREF_RATE_MAX)
+    time.sleep(delay)
+
+    try:
+        resp = _fetch_with_backoff(url, FBREF_HEADERS)
+    except Exception as e:
+        print(f"  [warn] FBref fetch failed for {table_type} {season_label}: {e}")
+        return pd.DataFrame()
+
+    try:
+        df = _extract_fbref_table(resp.text, table_id)
+    except ValueError as e:
+        print(f"  [warn] Table extraction failed: {e}")
+        return pd.DataFrame()
+
+    # Normalise xAG -> xA for stats_standard (FBref renamed xA to xAG in 2022-23).
+    # Phase 2 pillar model and merger.py reference xA; rename here so downstream
+    # code is consistent regardless of season. Only applies to stats_standard.
+    if table_type == "stats_standard":
+        if "xAG" in df.columns and "xA" not in df.columns:
+            df = df.rename(columns={"xAG": "xA"})
+
+    # Convert Min to numeric; drop non-player rows (e.g. squad totals have no Player)
+    if "Player" in df.columns:
+        df = df[df["Player"].notna() & (df["Player"] != "")].copy()
+
+    if "Min" in df.columns:
+        # FBref sometimes formats Min with commas: "1,234" -> 1234
+        df["Min"] = (
+            df["Min"].astype(str)
+            .str.replace(",", "", regex=False)
+        )
+        df["Min"] = pd.to_numeric(df["Min"], errors="coerce")
+
+        # DATA-07: filter out players below 900 minutes
+        before = len(df)
+        df = df[df["Min"].fillna(0) >= FBREF_MIN_MINUTES].copy()
+        after = len(df)
+        print(f"    Min-minutes filter: {before} -> {after} players (>= {FBREF_MIN_MINUTES} min)")
+
+    df = df.reset_index(drop=True)
+    df.to_csv(path, index=False)
+    print(f"    -> {len(df)} players cached to {path}")
+    return df
 
 
 def run_fbref_scrapers(league: str = "EPL") -> dict:
-    """Stub — full implementation in Plan 01-02."""
-    return {}
+    """Scrape all FBref tables for all configured seasons. Returns {table_type: {season: DataFrame}}."""
+    from config import FBREF_TABLES, FBREF_SEASONS
+    results = {}
+    for table_type in FBREF_TABLES:
+        results[table_type] = {}
+        for season_label in FBREF_SEASONS:
+            print(f"\n[FBref] {league} {table_type} {season_label}")
+            results[table_type][season_label] = scrape_fbref_stat(table_type, season_label, league)
+    return results
 
 
 # ── Position mappers ──────────────────────────────────────────────────────────
