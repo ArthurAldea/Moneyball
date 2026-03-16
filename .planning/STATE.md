@@ -1,8 +1,8 @@
 # Project State
 
 **Current Phase:** Phase 1 — FBref Scraper (EPL)
-**Status:** In Progress — Plan 01-02 complete, Plan 01-03 next
-**Last Updated:** 2026-03-16 (Plan 01-02 complete)
+**Status:** Complete — All plans (01-01, 01-02, 01-03) done. Phase 2 next.
+**Last Updated:** 2026-03-16 (Plan 01-03 complete)
 
 ## Project Reference
 See: .planning/PROJECT.md
@@ -12,7 +12,7 @@ See: .planning/PROJECT.md
 
 | # | Phase | Status |
 |---|-------|--------|
-| 1 | FBref Scraper (EPL) | 🔄 In Progress (Plans 01-01, 01-02 done) |
+| 1 | FBref Scraper (EPL) | ✅ Complete (Plans 01-01, 01-02, 01-03 done) |
 | 2 | Merger & Scorer Rewrite (EPL End-to-End) | 🔲 Not Started |
 | 3 | Multi-League Expansion | 🔲 Not Started |
 | 4 | Advanced Scoring | 🔲 Not Started |
@@ -21,8 +21,8 @@ See: .planning/PROJECT.md
 
 ## Current Position
 
-**Plan:** 01-02 complete
-**Next:** Plan 01-03 (bulk scrape entry point and Understat/API-Football retirement)
+**Plan:** 01-03 complete — Phase 1 fully done
+**Next:** Phase 2 — Merger & Scorer Rewrite (EPL End-to-End)
 
 ## Accumulated Decisions
 
@@ -31,11 +31,15 @@ See: .planning/PROJECT.md
 - **Cache naming convention (DATA-05):** `cache/fbref_{LEAGUE}_{table}_{season}.csv` — e.g. `cache/fbref_EPL_stats_standard_2024-25.csv`.
 - **Season label format:** Short form `"2024-25"` used throughout; `build_fbref_url()` converts to long form `"2024-2025"` for FBref URLs internally.
 - **Function stubs pattern:** `scrape_fbref_stat` / `run_fbref_scrapers` added as stubs in Plan 01-01 so `test_scraper.py` imports without error before Plan 01-02 implements them fully.
-- **test_scraper.py converted to pytest:** Was a print-based script; now a proper pytest module with smoke tests. Future plans should add real test functions here.
+- **test_scraper.py converted to full pytest suite:** Replaced 5 smoke tests with 9 no-network tests covering cache, rate limiting, backoff, URL construction, table extraction, column presence, orchestration, cache naming, and warm-cache speed.
 - **pd.read_html(header=1) for FBref tables:** Skips the group-label row and uses stat-name row directly as column names; avoids fragile MultiIndex flattening.
 - **xAG->xA rename at scrape time:** Applied inside scrape_fbref_stat for stats_standard so Phase 2 merger is agnostic of FBref's 2022-23 column rename.
 - **scrape_fbref_stat prefix normalisation:** Accepts both "standard" and "stats_standard" — preserves test_scraper.py call signature without modification.
+- **run_fbref_scrapers league-first nesting:** Returns `{league: {season: {table_type: df}}}` — league-first aligns with Phase 3 multi-league iteration pattern.
+- **Deprecated stubs kept (not deleted):** run_understat_scrapers and run_api_football_scrapers return empty dicts; removal deferred to Phase 2 when merger.py is rewritten.
+- **merger.py compute_per90s guard:** Added empty-DataFrame and missing-Min-column checks so build_dataset({}, {}, pd.DataFrame()) does not crash in Phase 1.
+- **app.py shows 0 players in Phase 1:** Expected and acceptable — stubs return {} so merger produces empty output. Phase 2 will rewire load_data to call run_fbref_scrapers.
 
 ## Notes
-(empty)
+- Phase 2 blocker: merger.py uses old Understat/API-Football column names (xGChain, GoalsConceded, etc.) — these must be remapped to FBref columns (PrgP, GA, Save%, etc.) in the merger rewrite.
 
