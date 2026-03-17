@@ -4,20 +4,20 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 2
 status: in-progress
-stopped_at: Phase 2 Plan 02-02 complete — ready for 02-03
-last_updated: "2026-03-17T01:00:00.000Z"
+stopped_at: Phase 2 Plan 02-03 complete — ready for 02-04
+last_updated: "2026-03-17T02:00:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
 
 **Current Phase:** 2
-**Status:** In progress (Plan 02-02 complete)
-**Last Updated:** 2026-03-17 (Plan 02-02 executed)
+**Status:** In progress (Plan 02-03 complete)
+**Last Updated:** 2026-03-17 (Plan 02-03 executed)
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-03-16)
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 | # | Phase | Status |
 |---|-------|--------|
 | 1 | FBref Scraper (EPL) | ✅ Complete (Plans 01-01, 01-02, 01-03 done) |
-| 2 | Merger & Scorer Rewrite (EPL End-to-End) | 🔄 In Progress (2/4 plans done) |
+| 2 | Merger & Scorer Rewrite (EPL End-to-End) | 🔄 In Progress (3/4 plans done) |
 | 3 | Multi-League Expansion | 🔲 Not Started |
 | 4 | Advanced Scoring | 🔲 Not Started |
 | 5 | Dashboard Rebuild — Shortlist & Filters | 🔲 Not Started |
@@ -37,11 +37,14 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-**Plan:** Phase 2, Plan 02-02 complete. Next: Plan 02-03 (Scorer Rewrite + Age-Weight)
-**Next:** Execute Plan 02-03 — rewrite scorer.py with FBref columns, age-weight UV score
+**Plan:** Phase 2, Plan 02-03 complete. Next: Plan 02-04 (app.py Rewire & Integration)
+**Next:** Execute Plan 02-04 — rewire app.py to call run_scoring_pipeline with 2-arg signature
 
 ## Accumulated Decisions
 
+- **[02-03] _parse_age handles FBref 'years-days' format:** Splits on '-' and takes first token; returns float(NaN) for unparseable values including None and 'N/A'.
+- **[02-03] age-25 multiplier is 1.17, not 1.09:** Plan documentation had an error in the example values table; actual formula (log(29-age)/log(12) * 0.30 + 1.0) yields 1.167 at age 25, not 1.09. Tests corrected to match actual formula.
+- **[02-03] run_scoring_pipeline signature changed to 2-arg (fbref_data, tm_data):** Old 3-arg (understat_data, api_data, tm_data) fully removed. app.py rewire in 02-04 required.
 - **[02-02] _deduplicate_multiclub regex covers '2 Clubs' and '2 teams':** Pattern `r"^\d+\s+[Cc]lub|^\d+\s+[Tt]eam"` handles both FBref variants robustly across seasons.
 - **[02-02] scrape_fbref_standings try/except fallback:** `_extract_fbref_table` raises `ValueError` on table-not-found; the standings function catches this and falls back to comment-node scan for resilience.
 - **[02-02] build_dataset min-minutes scales by season count:** `MIN_MINUTES_PER_SEASON * len(league_data)` rather than hardcoded 1800 — correctly handles 1-season or 3-season inputs.
@@ -65,13 +68,13 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Progress
 Phase 1: [████████████████████] 3/3 plans (100%) — Complete
-Phase 2: [██████████░░░░░░░░░░] 2/4 plans (50%) — In Progress
+Phase 2: [███████████████░░░░░] 3/4 plans (75%) — In Progress
 
 ## Session Continuity
-Last session: 2026-03-17T01:00:00.000Z
-Stopped at: Plan 02-02 complete (merger rewrite + standings scraper + 11 tests)
-Resume file: .planning/phases/02-merger-scorer-rewrite-epl-end-to-end/02-03-PLAN.md
+Last session: 2026-03-17T02:00:00.000Z
+Stopped at: Plan 02-03 complete (scorer rewrite + age-weight UV + 6 scorer tests passing)
+Resume file: .planning/phases/02-merger-scorer-rewrite-epl-end-to-end/02-04-PLAN.md
 
 ## Blockers/Concerns
-- ⚠️ [Phase 2 / Plan 02-03] `scorer.py` still references old Understat/API-Football column names (`xGChain`, etc.) — rewrite pending in Plan 02-03. `app.py` still shows 0 players until 02-03 and 02-04 are complete.
+- ⚠️ [Phase 2 / Plan 02-04] `app.py` still calls old 3-arg `run_scoring_pipeline(understat_data, api_data, tm_data)` — rewire pending in Plan 02-04. Dashboard will show 0 players until 02-04 is complete.
 
