@@ -19,16 +19,16 @@ created: 2026-03-17
 |----------|-------|
 | **Framework** | pytest 7.x |
 | **Config file** | `pytest.ini` or `pyproject.toml` (Wave 0 creates if missing) |
-| **Quick run command** | `pytest tests/ -x -q` |
-| **Full suite command** | `pytest tests/ -v` |
+| **Quick run command** | `pytest test_app.py -x -q` |
+| **Full suite command** | `pytest test_app.py test_scorer.py test_merger.py test_scraper.py -v` |
 | **Estimated runtime** | ~10 seconds |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `pytest tests/ -x -q`
-- **After every plan wave:** Run `pytest tests/ -v`
+- **After every task commit:** Run `pytest test_app.py -x -q`
+- **After every plan wave:** Run `pytest test_app.py test_scorer.py test_merger.py test_scraper.py -v`
 - **Before `/gsd:verify-work`:** Full suite must be green
 - **Max feedback latency:** 10 seconds
 
@@ -38,16 +38,16 @@ created: 2026-03-17
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 5-01-01 | 01 | 0 | DASH-01 | unit | `pytest tests/test_dashboard.py::test_shortlist_columns -x -q` | ❌ W0 | ⬜ pending |
-| 5-01-02 | 01 | 1 | FILTER-01 | unit | `pytest tests/test_dashboard.py::test_league_filter -x -q` | ❌ W0 | ⬜ pending |
-| 5-01-03 | 01 | 1 | FILTER-02 | unit | `pytest tests/test_dashboard.py::test_position_filter -x -q` | ❌ W0 | ⬜ pending |
-| 5-01-04 | 01 | 1 | FILTER-03 | unit | `pytest tests/test_dashboard.py::test_age_filter -x -q` | ❌ W0 | ⬜ pending |
-| 5-01-05 | 01 | 1 | FILTER-04 | unit | `pytest tests/test_dashboard.py::test_club_filter_dynamic -x -q` | ❌ W0 | ⬜ pending |
-| 5-01-06 | 01 | 1 | FILTER-05 | unit | `pytest tests/test_dashboard.py::test_market_value_filter -x -q` | ❌ W0 | ⬜ pending |
-| 5-01-07 | 01 | 1 | FILTER-06 | unit | `pytest tests/test_dashboard.py::test_season_filter -x -q` | ❌ W0 | ⬜ pending |
+| 5-01-01 | 01 | 1 | DASH-01 | unit | `pytest test_app.py::test_default_sort_order test_app.py::test_display_columns -x -q` | ❌ W0 | ⬜ pending |
+| 5-01-02 | 01 | 1 | FILTER-01 | unit | `pytest test_app.py::test_filter_league -x -q` | ❌ W0 | ⬜ pending |
+| 5-01-03 | 01 | 1 | FILTER-02 | unit | `pytest test_app.py::test_filter_position -x -q` | ❌ W0 | ⬜ pending |
+| 5-01-04 | 01 | 1 | FILTER-03 | unit | `pytest test_app.py::test_filter_age -x -q` | ❌ W0 | ⬜ pending |
+| 5-01-05 | 01 | 1 | FILTER-04 | unit | `pytest test_app.py::test_club_options_derived_from_leagues -x -q` | ❌ W0 | ⬜ pending |
+| 5-01-06 | 01 | 1 | FILTER-05 | unit | `pytest test_app.py::test_filter_market_value -x -q` | ❌ W0 | ⬜ pending |
+| 5-01-07 | 01 | 1 | FILTER-06 | unit | `pytest test_app.py::test_filter_season -x -q` | ❌ W0 | ⬜ pending |
 | 5-02-01 | 02 | 2 | DASH-05 | manual | Visual inspection of dark theme | N/A | ⬜ pending |
-| 5-02-02 | 02 | 2 | DASH-06 | unit | `pytest tests/test_dashboard.py::test_scatter_plot_data -x -q` | ❌ W0 | ⬜ pending |
-| 5-02-03 | 02 | 2 | DASH-07 | unit | `pytest tests/test_dashboard.py::test_cross_league_disclaimer -x -q` | ❌ W0 | ⬜ pending |
+| 5-02-02 | 02 | 2 | DASH-06 | unit | `pytest test_app.py::test_scatter_axes -x -q` | ❌ W0 | ⬜ pending |
+| 5-02-03 | 02 | 2 | DASH-07 | unit | `pytest test_app.py::test_cross_league_disclaimer_condition -x -q` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -55,8 +55,7 @@ created: 2026-03-17
 
 ## Wave 0 Requirements
 
-- [ ] `tests/test_dashboard.py` — stubs for DASH-01 through DASH-07 and FILTER-01 through FILTER-06
-- [ ] `tests/conftest.py` — shared fixtures (sample DataFrame with all required columns)
+- [ ] `test_app.py` — 12 unit tests covering FILTER-01–06 and DASH-01–07 (created by Plan 05-01)
 
 *If framework already present in `requirements.txt` no install task needed.*
 
