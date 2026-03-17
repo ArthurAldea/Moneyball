@@ -6,7 +6,7 @@
 |---|-------|------|--------------|--------|
 | 1 | FBref Scraper (EPL) | Replace Understat + API-Football with a complete FBref scraper covering all required stat tables for EPL only | DATA-01 (EPL), DATA-02, DATA-05, DATA-06, DATA-07 | ✅ Complete |
 | 2 | Merger & Scorer Rewrite (EPL End-to-End) | Rebuild merger and scorer to ingest FBref columns, confirm all pillar models produce sensible scores for EPL, and add age-weighted UV | DATA-03, SCORE-01, SCORE-02, SCORE-03, SCORE-06, SCORE-07 | ✅ Complete |
-| 3 | Multi-League Expansion | Extend scraper and Transfermarkt integration to La Liga, Bundesliga, Serie A, and Ligue 1; add League column throughout the pipeline | DATA-01 (all leagues), DATA-04, DATA-05 (league key) | 🔄 In Progress (1/3) |
+| 3 | Multi-League Expansion | Extend scraper and Transfermarkt integration to La Liga, Bundesliga, Serie A, and Ligue 1; add League column throughout the pipeline | DATA-01 (all leagues), DATA-04, DATA-05 (league key) | 🔄 In Progress (2/3) |
 | 4 | Advanced Scoring | Apply team strength adjustment and league quality multiplier across the full five-league pool; add cosine similar-player computation | SCORE-04, SCORE-05, SCORE-08 | Not Started |
 | 5 | Dashboard Rebuild — Shortlist & Filters | Replace current tab layout with shortlist-first landing page, all six filters, professional dark theme, and UV scatter plot | FILTER-01, FILTER-02, FILTER-03, FILTER-04, FILTER-05, FILTER-06, DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06, DASH-07 | Not Started |
 | 6 | Player Deep Profile | Add drill-down player profile with radar chart, full per-90 stat table with percentile bars, scatter highlight, and similar players panel | PROFILE-01, PROFILE-02, PROFILE-03, PROFILE-04, PROFILE-05 | Not Started |
@@ -69,7 +69,7 @@
 | Plan | Title | Status |
 |------|-------|--------|
 | 03-01 | Multi-League Scraper Foundation | ✅ Done |
-| 03-02 | Multi-League Merger | 🔲 Pending |
+| 03-02 | Multi-League Merger | ✅ Done |
 | 03-03 | Multi-League Scorer & Pipeline | 🔲 Pending |
 
 **Goal:** Extend the scraper to all five leagues and the Transfermarkt scraper to all five league club lists; add a `League` column to every DataFrame; loop the full pipeline over all five leagues so the master output contains players from EPL, La Liga, Bundesliga, Serie A, and Ligue 1.

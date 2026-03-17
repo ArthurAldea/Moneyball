@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 3
 status: in_progress
-stopped_at: Plan 03-01 executed (data-layer foundation for 5-league scraping complete)
-last_updated: "2026-03-17T04:00:00.000Z"
+stopped_at: Plan 03-02 executed (multi-league merger with 3-pass TM matching and single_season flag complete)
+last_updated: "2026-03-17T05:00:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 2
@@ -16,13 +16,13 @@ progress:
 # Project State
 
 **Current Phase:** 3
-**Status:** In Progress (Plan 03-01 complete)
-**Last Updated:** 2026-03-17 (Plan 03-01 executed)
+**Status:** In Progress (Plan 03-02 complete)
+**Last Updated:** 2026-03-17 (Plan 03-02 executed)
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-03-16)
 **Core value:** Surface players whose performance most exceeds their market price — in the right positional and team context.
-**Current focus:** Phase 3 Multi-League Expansion — Plan 03-01 complete, scraper data layer ready for 5 leagues
+**Current focus:** Phase 3 Multi-League Expansion — Plan 03-02 complete, merger multi-league support ready
 
 ## Phase Progress
 
@@ -30,18 +30,21 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 |---|-------|--------|
 | 1 | FBref Scraper (EPL) | ✅ Complete (Plans 01-01, 01-02, 01-03 done) |
 | 2 | Merger & Scorer Rewrite (EPL End-to-End) | ✅ Complete (4/4 plans done) |
-| 3 | Multi-League Expansion | 🔄 In Progress (1/3 plans done) |
+| 3 | Multi-League Expansion | 🔄 In Progress (2/3 plans done) |
 | 4 | Advanced Scoring | 🔲 Not Started |
 | 5 | Dashboard Rebuild — Shortlist & Filters | 🔲 Not Started |
 | 6 | Player Deep Profile | 🔲 Not Started |
 
 ## Current Position
 
-**Plan:** 03-01 complete. Next: Plan 03-02 (multi-league merger)
-**Next:** Execute Plan 03-02 — build_dataset and merger multi-league support
+**Plan:** 03-02 complete. Next: Plan 03-03 (run_scoring_pipeline multi-league wiring)
+**Next:** Execute Plan 03-03 — full end-to-end 5-league pipeline and scorer integration
 
 ## Accumulated Decisions
 
+- **[03-02] Pass 3 requires club cross-check:** At WRatio 70-79 name similarity there are too many false positives for multi-language player names; requiring club match prevents incorrect value attachments. normalize_club strips FC/CF/AFC affixes with word-boundary regex.
+- **[03-02] tm_club_lookup defensively empty when club_tm absent:** When TM DataFrame lacks club_tm column (legacy test fixtures), Pass 3 silently skips — backward-compatible with all prior tests.
+- **[03-02] single_season flag in _aggregate_fbref_seasons:** True when player appears in only 1 season (nunique==1 on _season). Available for Phase 5 dashboard caveat display.
 - **[03-01] TM cache key uses season label as-is (2024-25 not 202425):** Matches FBref cache convention and is human-readable. run_tm_scrapers returns combined DataFrame with league_tm column; no cross-league deduplication — merger Pass 3 club cross-check disambiguates.
 - **[03-01] run_tm_scrapers returns season + league_tm columns:** Enables Phase 3 merger to filter by league. Combined DataFrame not deduplicated across leagues — same player name can appear in multiple leagues after a transfer.
 - **[03-01] TM_EPL_CLUBS_URL dead constant removed:** TM_LEAGUE_URLS in config.py is now the single source for all league club URLs (wettbewerb codes GB1, ES1, L1, IT1, FR1).
@@ -72,12 +75,12 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Progress
 Phase 1: [████████████████████] 3/3 plans (100%) — Complete
 Phase 2: [████████████████████] 4/4 plans (100%) — Complete
-Phase 3: [███░░░░░░░░░░░░░░░░░] 1/3 plans (33%) — In Progress
+Phase 3: [███████░░░░░░░░░░░░░] 2/3 plans (67%) — In Progress
 
 ## Session Continuity
-Last session: 2026-03-17T04:00:00.000Z
-Stopped at: Plan 03-01 executed (scraper multi-league foundation complete)
-Resume file: .planning/phases/03-multi-league-expansion/03-01-SUMMARY.md
+Last session: 2026-03-17T05:00:00.000Z
+Stopped at: Plan 03-02 executed (multi-league merger with 3-pass TM matching and single_season flag complete)
+Resume file: .planning/phases/03-multi-league-expansion/03-02-SUMMARY.md
 
 ## Blockers/Concerns
-- None. Plan 03-01 complete; 33 tests green. Ready for Plan 03-02 (multi-league merger).
+- None. Plan 03-02 complete; 37 tests green. Ready for Plan 03-03 (multi-league scoring pipeline).
