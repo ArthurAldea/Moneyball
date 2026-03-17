@@ -369,19 +369,72 @@ def test_league_column_preserved_through_pipeline():
     assert "scout_score" in result.columns, "scout_score missing from pipeline output"
 
 
-@pytest.mark.xfail(reason="SCORE-04: apply_team_strength_adjustment not yet implemented", strict=True)
 def test_team_strength_bottom_half_inflates_df_score():
     """Bottom-half DF gets higher adjusted defensive stats than identical stats at top-half club."""
-    assert False, "stub — implement in plan 04-01 task 3"
+    from scorer import apply_team_strength_adjustment
+
+    df = pd.DataFrame({
+        "Player":          ["BottomDF", "TopDF"],
+        "Pos":             ["DF", "DF"],
+        "League":          ["EPL", "EPL"],
+        "league_position": [15.0, 5.0],  # 20-club league; threshold=10
+        "Tkl_p90":         [1.0, 1.0],
+        "Int_p90":         [1.0, 1.0],
+        "Blocks_p90":      [1.0, 1.0],
+        "DuelsWon_p90":    [1.0, 1.0],
+        "Pres_p90":        [1.0, 1.0],
+    })
+
+    result = apply_team_strength_adjustment(df)
+    bottom = result[result["Player"] == "BottomDF"].iloc[0]
+    top    = result[result["Player"] == "TopDF"].iloc[0]
+
+    for stat in ["Tkl_p90", "Int_p90", "Blocks_p90", "DuelsWon_p90", "Pres_p90"]:
+        assert abs(bottom[stat] - 1.10) < 1e-9, (
+            f"Bottom-half DF {stat}: expected 1.10, got {bottom[stat]}"
+        )
+        assert abs(top[stat] - 0.90) < 1e-9, (
+            f"Top-half DF {stat}: expected 0.90, got {top[stat]}"
+        )
 
 
-@pytest.mark.xfail(reason="SCORE-04: apply_team_strength_adjustment not yet implemented", strict=True)
 def test_team_strength_does_not_affect_fw_attacking():
     """FW xG_p90, Gls_p90, Ast_p90, SoT_p90 must be unchanged by team strength step."""
-    assert False, "stub — implement in plan 04-01 task 3"
+    from scorer import apply_team_strength_adjustment
+
+    df = pd.DataFrame({
+        "Player":          ["FW1"],
+        "Pos":             ["FW"],
+        "League":          ["EPL"],
+        "league_position": [15.0],
+        "xG_p90":          [0.5],
+        "Gls_p90":         [0.3],
+        "Ast_p90":         [0.2],
+        "SoT_p90":         [1.0],
+    })
+
+    result = apply_team_strength_adjustment(df)
+    fw = result.iloc[0]
+
+    assert abs(fw["xG_p90"]  - 0.5) < 1e-9, f"xG_p90 changed: {fw['xG_p90']}"
+    assert abs(fw["Gls_p90"] - 0.3) < 1e-9, f"Gls_p90 changed: {fw['Gls_p90']}"
+    assert abs(fw["Ast_p90"] - 0.2) < 1e-9, f"Ast_p90 changed: {fw['Ast_p90']}"
+    assert abs(fw["SoT_p90"] - 1.0) < 1e-9, f"SoT_p90 changed: {fw['SoT_p90']}"
 
 
-@pytest.mark.xfail(reason="SCORE-04: apply_team_strength_adjustment not yet implemented", strict=True)
 def test_team_strength_skips_nan_league_position():
     """Player with NaN league_position passes through with no stat change."""
-    assert False, "stub — implement in plan 04-01 task 3"
+    from scorer import apply_team_strength_adjustment
+
+    df = pd.DataFrame({
+        "Player":          ["DF1"],
+        "Pos":             ["DF"],
+        "League":          ["EPL"],
+        "league_position": [float("nan")],
+        "Tkl_p90":         [1.0],
+    })
+
+    result = apply_team_strength_adjustment(df)
+    assert abs(result.iloc[0]["Tkl_p90"] - 1.0) < 1e-9, (
+        f"Tkl_p90 should be unchanged for NaN league_position, got {result.iloc[0]['Tkl_p90']}"
+    )

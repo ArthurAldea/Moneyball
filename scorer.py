@@ -20,6 +20,58 @@ from sklearn.linear_model import LinearRegression
 from config import PILLARS_FW, PILLARS_MF, PILLARS_DF, GK_PILLARS
 
 
+# ── Team Strength Adjustment constants (SCORE-04) ─────────────────────────────
+_DF_DEFENSIVE_STATS = ["Tkl_p90", "Int_p90", "Blocks_p90", "DuelsWon_p90", "Pres_p90"]
+_GK_RATE_STATS = ["Save%", "PSxG/SoT"]
+_TEAM_STRENGTH_MAGNITUDE = 0.10  # ±10%
+
+
+def apply_team_strength_adjustment(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Adjust defensive per-90 stats for DF and GK based on team league position.
+
+    Logic (SCORE-04):
+    - DF bottom-half (league_position > n_clubs/2): multiply _DF_DEFENSIVE_STATS by 1.10
+    - DF top-half (league_position <= n_clubs/2): multiply _DF_DEFENSIVE_STATS by 0.90
+    - GK bottom-half: multiply Save% and PSxG/SoT by 1.10
+    - GK top-half: multiply Save% and PSxG/SoT by 0.90
+    - FW/MF attacking stats: NEVER modified
+    - NaN league_position: skip (consistent with merger soft-fail pattern)
+    - n_clubs derived dynamically per league from max(league_position) — handles both
+      20-club (EPL/LaLiga/SerieA) and 18-club (Bundesliga/Ligue1) correctly.
+    """
+    if "League" not in df.columns or "league_position" not in df.columns:
+        return df
+    df = df.copy()
+    for league in df["League"].unique():
+        league_mask = df["League"] == league
+        valid_pos = df.loc[league_mask, "league_position"].dropna()
+        if valid_pos.empty:
+            continue
+        n_clubs = valid_pos.max()
+        threshold = n_clubs / 2
+
+        # DF adjustment — defensive per-90 stats only
+        df_mask = league_mask & (df["Pos"] == "DF") & df["league_position"].notna()
+        bottom_df = df_mask & (df["league_position"] > threshold)
+        top_df    = df_mask & (df["league_position"] <= threshold)
+        for col in _DF_DEFENSIVE_STATS:
+            if col in df.columns:
+                df.loc[bottom_df, col] = df.loc[bottom_df, col] * (1 + _TEAM_STRENGTH_MAGNITUDE)
+                df.loc[top_df,    col] = df.loc[top_df,    col] * (1 - _TEAM_STRENGTH_MAGNITUDE)
+
+        # GK adjustment — rate stats only (Pres_p90 is NOT adjusted for GK)
+        gk_mask   = league_mask & (df["Pos"] == "GK") & df["league_position"].notna()
+        bottom_gk = gk_mask & (df["league_position"] > threshold)
+        top_gk    = gk_mask & (df["league_position"] <= threshold)
+        for col in _GK_RATE_STATS:
+            if col in df.columns:
+                df.loc[bottom_gk, col] = df.loc[bottom_gk, col] * (1 + _TEAM_STRENGTH_MAGNITUDE)
+                df.loc[top_gk,    col] = df.loc[top_gk,    col] * (1 - _TEAM_STRENGTH_MAGNITUDE)
+
+    return df
+
+
 def _score_group(df: pd.DataFrame, pillars: dict) -> pd.DataFrame:
     """
     Normalise stat columns (MinMax within this position group), then compute
@@ -207,6 +259,8 @@ def run_scoring_pipeline(fbref_data: dict,
     df = build_dataset(fbref_data, tm_data)
     if df.empty:
         return df
+    print("[scorer] Applying team strength adjustment (SCORE-04)...")
+    df = apply_team_strength_adjustment(df)
     print("[scorer] Computing scout scores...")
     df = compute_scout_scores(df)
     print("[scorer] Computing UV scores (regression on full pool)...")
