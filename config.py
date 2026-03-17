@@ -9,7 +9,7 @@ SEASONS = {
     "2025-26": 2025,
 }
 
-MIN_MINUTES = 3000          # minimum across all seasons combined (3-season default)
+MIN_MINUTES = 1800          # minimum across all seasons combined (2-season threshold: 900 × 2)
 MIN_MINUTES_PER_SEASON = 900  # scales down when fewer seasons are selected
 
 # ── FBref scraper constants ────────────────────────────────────────────────────
@@ -125,8 +125,8 @@ FUZZY_THRESHOLD = 80
 # ── Outfield Scout Score Pillars (position-specific) ──────────────────────────
 # Weights reflect each position's primary responsibilities.
 # Creation pillar: Ast_p90 removed (was double-counted from Attacking pillar).
-# Progression for FW/DF: uses xGBuildup_p90 (excludes own shots/chances) instead
-# of xGChain_p90 to avoid double-counting forward output.
+# Progression for FW/DF: uses PrgC_p90 (progressive carries) + DrbSucc% (dribble success rate).
+# Progression for MF: uses PrgP_p90 (progressive passes) + SCA_p90 (shot-creating actions).
 
 _CREATION = {
     "weight": 20,
@@ -158,7 +158,7 @@ PILLARS_FW = {
         "weight": 20,
         "label": "Progression",
         "color": "#00ff41",
-        "stats": {"xGBuildup_p90": 0.45, "DrbAttempts_p90": 0.30, "DrbSucc_p90": 0.25},
+        "stats": {"PrgC_p90": 0.55, "DrbSucc%": 0.45},
     },
     "creation": {**_CREATION, "weight": 20},
     "defense":   {**_DEFENSE,   "weight":  5},
@@ -176,7 +176,7 @@ PILLARS_MF = {
         "weight": 30,
         "label": "Progression",
         "color": "#00ff41",
-        "stats": {"xGChain_p90": 0.40, "DrbAttempts_p90": 0.35, "DrbSucc_p90": 0.25},
+        "stats": {"PrgP_p90": 0.60, "SCA_p90": 0.40},
     },
     "creation": {**_CREATION, "weight": 25},
     "defense":   {**_DEFENSE,   "weight": 15},
@@ -194,7 +194,7 @@ PILLARS_DF = {
         "weight": 15,
         "label": "Progression",
         "color": "#00ff41",
-        "stats": {"xGBuildup_p90": 0.50, "DrbAttempts_p90": 0.30, "DrbSucc_p90": 0.20},
+        "stats": {"PrgC_p90": 0.55, "DrbSucc%": 0.45},
     },
     "creation": {**_CREATION, "weight": 10},
     "defense":   {**_DEFENSE,   "weight": 45},
@@ -211,9 +211,9 @@ GK_PILLARS = {
         "weight": 50,
         "label": "Shot Stopping",
         "color": "#ff3131",
-        # SavePct = saves / (saves + goals_conceded) — rewards quality, not volume.
-        # Higher saves/90 at a weak team is penalised; good GKs at strong teams rewarded.
-        "stats": {"SavePct": 1.0},
+        # Save% = saves / shots on target against — volume-adjusted save rate.
+        # PSxG/SoT = post-shot xG per shot on target — rewards stopping harder shots.
+        "stats": {"Save%": 0.60, "PSxG/SoT": 0.40},
     },
     "progression": {        # → Distribution
         "weight": 20,
@@ -242,13 +242,26 @@ GK_PILLARS = {
 }
 
 # ── Aggregation rules ─────────────────────────────────────────────────────────
-UNDERSTAT_SUM    = ["Min", "Gls", "Ast", "xG", "xA", "npxG", "xGChain", "xGBuildup", "Sh", "KP"]
-API_FOOTBALL_SUM = ["Saves", "GoalsConceded", "SoT", "Tkl", "Blocks", "Int",
-                    "DuelsTotal", "DuelsWon", "DrbAttempts", "DrbSucc", "Fld"]
-SUM_STATS  = UNDERSTAT_SUM + API_FOOTBALL_SUM
-MEAN_STATS = ["Cmp%"]
+# FBref raw-count columns to sum across seasons
+SUM_STATS = [
+    "Min", "Gls", "Ast", "xG", "xA", "npxG", "SoT",
+    "KP", "PrgP", "PrgC",
+    "Tkl", "Blocks", "Int",
+    "Cmp", "Att",              # pass attempts (for Cmp% re-derivation)
+    "Won", "Lost",             # aerial duels (stats_misc)
+    "Succ",                    # dribbles succeeded (stats_possession)
+    "Att_drb",                 # dribble attempts (stats_possession — renamed at merge time)
+    "SCA",                     # shot-creating actions (stats_gca)
+    "Saves", "GA",             # GK stats_keeper
+    "PSxG",                    # GK keeper_adv (for PSxG/SoT re-derivation)
+    "SoTA",                    # GK shots on target against (stats_keeper)
+]
+MEAN_STATS = []  # all rate stats re-derived from sums, not averaged
 PER90_STATS = [
-    "Gls", "Ast", "xG", "xA", "npxG", "xGChain", "xGBuildup", "Sh", "KP",
-    "Saves", "SoT", "Tkl", "Blocks", "Int", "DuelsWon",
-    "DrbAttempts", "DrbSucc", "Fld",
+    "Gls", "Ast", "xG", "xA", "npxG", "SoT",
+    "KP", "PrgP", "PrgC",
+    "Tkl", "Blocks", "Int",
+    "Won",    # aerial duels won → DuelsWon_p90
+    "SCA",    # shot-creating actions → SCA_p90
+    "Saves",  # GK saves per 90
 ]
