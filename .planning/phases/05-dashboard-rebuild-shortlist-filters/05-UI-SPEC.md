@@ -52,15 +52,16 @@ Exceptions: Streamlit sidebar internal padding is browser-controlled; only overr
 | Body | 14px | 400 | 1.5 |
 | Label | 11px | 600 | 1.2 |
 | Heading | 20px | 600 | 1.2 |
-| Display | 28px | 700 | 1.1 |
+| Display | 28px | 600 | 1.1 |
 
 Notes:
 - Label role = column headers (ALL-CAPS, `letter-spacing: 0.10em`), section labels (`letter-spacing: 0.12em`), sidebar filter titles.
 - Heading role = page title, section headings.
-- Display role = app masthead ("MONEYBALL") only.
+- Display role = app masthead ("MONEYBALL") only. Hierarchy over Heading is carried by size (28px vs 20px) and ALL-CAPS treatment — not by a separate weight.
 - All-caps is applied via `text-transform: uppercase` in CSS — source text stays mixed-case in Python.
+- Two weights only: 400 (Body) and 600 (Label, Heading, Display).
 
-> Source: CONTEXT.md "ALL-CAPS column headers and section labels". Sizes declared as design defaults (professional data dashboard standard).
+> Source: CONTEXT.md "ALL-CAPS column headers and section labels". Sizes declared as design defaults (professional data dashboard standard). Display weight collapsed from 700 to 600 per checker revision — size and ALL-CAPS carry Display hierarchy.
 
 ---
 
@@ -132,6 +133,10 @@ None in Phase 5. "Refresh Data" clears the Streamlit cache (`st.cache_data.clear
 ---
 
 ## Component Inventory
+
+### Visual Hierarchy
+
+Primary focal point: the shortlist table ranked by Age-Weighted UV Score descending.
 
 ### Shortlist Table
 
