@@ -302,24 +302,177 @@ def test_cache_hit_is_fast(tmp_path, monkeypatch):
 
 def test_url_construction_new_leagues():
     """build_fbref_url generates correct URLs for all 4 new leagues (comp IDs and slugs)."""
-    pytest.skip("stub — implemented in Plan 03-01 Task 3")
+    # LaLiga: comp_id=12, slug=La-Liga
+    url = build_fbref_url("LaLiga", "stats_standard", "2024-25")
+    assert url == "https://fbref.com/en/comps/12/2024-2025/stats/2024-2025-La-Liga-Stats", (
+        f"LaLiga URL wrong: {url}"
+    )
+
+    # Bundesliga: comp_id=20, slug=Bundesliga
+    url2 = build_fbref_url("Bundesliga", "stats_standard", "2024-25")
+    assert url2 == "https://fbref.com/en/comps/20/2024-2025/stats/2024-2025-Bundesliga-Stats", (
+        f"Bundesliga URL wrong: {url2}"
+    )
+
+    # SerieA: comp_id=11, slug=Serie-A
+    url3 = build_fbref_url("SerieA", "stats_standard", "2024-25")
+    assert url3 == "https://fbref.com/en/comps/11/2024-2025/stats/2024-2025-Serie-A-Stats", (
+        f"SerieA URL wrong: {url3}"
+    )
+
+    # Ligue1: comp_id=13, slug=Ligue-1
+    url4 = build_fbref_url("Ligue1", "stats_standard", "2024-25")
+    assert url4 == "https://fbref.com/en/comps/13/2024-2025/stats/2024-2025-Ligue-1-Stats", (
+        f"Ligue1 URL wrong: {url4}"
+    )
+
+    # keeper_adv URL for LaLiga uses keepersadv segment
+    url5 = build_fbref_url("LaLiga", "stats_keeper_adv", "2023-24")
+    assert "keepersadv" in url5
+    assert "12" in url5
+    assert "2023-2024" in url5
 
 
 def test_cache_naming_new_leagues():
     """_fbref_cache_path for new leagues produces correct convention: fbref_{LEAGUE}_{table}_{season}.csv"""
-    pytest.skip("stub — implemented in Plan 03-01 Task 3")
+    path = _fbref_cache_path("LaLiga", "stats_standard", "2024-25")
+    assert path.endswith("fbref_LaLiga_stats_standard_2024-25.csv"), (
+        f"LaLiga cache path wrong: {path}"
+    )
+
+    path2 = _fbref_cache_path("Bundesliga", "stats_gca", "2023-24")
+    assert path2.endswith("fbref_Bundesliga_stats_gca_2023-24.csv"), (
+        f"Bundesliga cache path wrong: {path2}"
+    )
+
+    path3 = _fbref_cache_path("SerieA", "stats_keeper_adv", "2024-25")
+    assert path3.endswith("fbref_SerieA_stats_keeper_adv_2024-25.csv"), (
+        f"SerieA cache path wrong: {path3}"
+    )
+
+    path4 = _fbref_cache_path("Ligue1", "stats_defense", "2023-24")
+    assert path4.endswith("fbref_Ligue1_stats_defense_2023-24.csv"), (
+        f"Ligue1 cache path wrong: {path4}"
+    )
+
+    # All 5 leagues × 9 tables × 2 seasons must produce unique paths
+    all_leagues = ["EPL", "LaLiga", "Bundesliga", "SerieA", "Ligue1"]
+    paths = [
+        _fbref_cache_path(league, table, season)
+        for league in all_leagues
+        for table in FBREF_TABLES
+        for season in FBREF_SEASONS
+    ]
+    assert len(paths) == len(set(paths)), "Cache paths must be unique per league/table/season combination"
 
 
-def test_run_fbref_scrapers_all_leagues():
+def test_run_fbref_scrapers_all_leagues(monkeypatch):
     """run_fbref_scrapers() with no args returns all 5 league keys; scrape_fbref_stat called 90 times."""
-    pytest.skip("stub — implemented in Plan 03-01 Task 3")
+    import scraper as scraper_module
+    from config import FBREF_LEAGUES, FBREF_SEASONS, FBREF_TABLES
+
+    call_log = []
+
+    def fake_scrape(table_type, season_label, league="EPL"):
+        call_log.append((league, season_label, table_type))
+        return pd.DataFrame({"Player": ["Test Player"], "Min": [1000]})
+
+    monkeypatch.setattr(scraper_module, "scrape_fbref_stat", fake_scrape)
+
+    results = run_fbref_scrapers()  # no args — should use all 5 leagues
+
+    # All 5 league keys must be present
+    expected_leagues = list(FBREF_LEAGUES.keys())
+    assert set(results.keys()) == set(expected_leagues), (
+        f"Expected leagues {expected_leagues}, got {list(results.keys())}"
+    )
+
+    # Must have been called exactly 5 leagues × 2 seasons × 9 tables = 90 times
+    expected_calls = len(FBREF_LEAGUES) * len(FBREF_SEASONS) * len(FBREF_TABLES)
+    assert len(call_log) == expected_calls, (
+        f"Expected {expected_calls} scrape_fbref_stat calls, got {len(call_log)}"
+    )
+
+    # Every league must have all seasons and all tables in the result
+    for league in expected_leagues:
+        assert league in results
+        for season in FBREF_SEASONS:
+            assert season in results[league], f"Season {season} missing for {league}"
+            for table in FBREF_TABLES:
+                assert table in results[league][season], f"Table {table} missing for {league}/{season}"
 
 
-def test_run_tm_scrapers_multi_league():
-    """run_tm_scrapers() with no args calls scrape_tm_season for all 5 leagues × 2 seasons."""
-    pytest.skip("stub — implemented in Plan 03-01 Task 3")
+def test_run_tm_scrapers_multi_league(monkeypatch):
+    """run_tm_scrapers() with no args calls scrape_tm_season for all 5 leagues × 2 FBREF seasons."""
+    import scraper as scraper_module
+    from config import TM_LEAGUE_URLS, FBREF_SEASONS
+
+    call_log = []
+
+    def fake_scrape_tm(season_year, season_label, league="EPL"):
+        call_log.append((league, season_label))
+        return pd.DataFrame({
+            "player_name_tm": [f"Player_{league}_{season_label}"],
+            "club_tm": ["Test Club"],
+            "market_value_eur": [1_000_000.0],
+            "season": [season_label],
+        })
+
+    monkeypatch.setattr(scraper_module, "scrape_tm_season", fake_scrape_tm)
+
+    result = scraper_module.run_tm_scrapers()  # no args — all 5 leagues
+
+    expected_leagues = list(TM_LEAGUE_URLS.keys())
+    leagues_called = set(league for league, _ in call_log)
+    assert leagues_called == set(expected_leagues), (
+        f"Expected leagues {expected_leagues}, got {sorted(leagues_called)}"
+    )
+
+    # Called once per league per FBREF season (5 leagues × 2 seasons = 10 calls)
+    expected_calls = len(expected_leagues) * len(FBREF_SEASONS)
+    assert len(call_log) == expected_calls, (
+        f"Expected {expected_calls} scrape_tm_season calls, got {len(call_log)}"
+    )
+
+    # Result is a combined DataFrame (not empty)
+    assert isinstance(result, pd.DataFrame)
+    assert len(result) > 0, "Combined TM DataFrame should have rows"
+    assert "player_name_tm" in result.columns
+    assert "market_value_eur" in result.columns
 
 
-def test_tm_cache_naming_league_keyed():
-    """scrape_tm_season with league param writes cache to tm_values_{LEAGUE}_{season}.csv."""
-    pytest.skip("stub — implemented in Plan 03-01 Task 3")
+def test_tm_cache_naming_league_keyed(tmp_path, monkeypatch):
+    """scrape_tm_season with league param writes cache to tm_values_{LEAGUE}_{season}.csv, not league-free name."""
+    import scraper as scraper_module
+    from scraper import _cache_path as orig_cache_path
+
+    written_paths = []
+
+    def fake_cache_path(key):
+        path = str(tmp_path / f"{key}.csv")
+        written_paths.append(key)
+        return path
+
+    # Patch _cache_path to capture the key used
+    monkeypatch.setattr(scraper_module, "_cache_path", fake_cache_path)
+
+    # Patch the HTTP/session calls so scrape_tm_season doesn't actually fetch
+    def fake_get_clubs(league, season_year, session):
+        return []  # no clubs → returns empty DataFrame early
+
+    monkeypatch.setattr(scraper_module, "_get_tm_club_list", fake_get_clubs)
+
+    scraper_module.scrape_tm_season(2024, "2024-25", league="LaLiga")
+
+    # The cache key must include the league name
+    assert any("LaLiga" in key for key in written_paths), (
+        f"Expected cache key containing 'LaLiga', got keys: {written_paths}"
+    )
+    assert any("2024-25" in key for key in written_paths), (
+        f"Expected cache key containing '2024-25', got keys: {written_paths}"
+    )
+
+    # Verify the OLD key format (league-free) is NOT used
+    assert not any(key == "tm_values_202425" for key in written_paths), (
+        "Old league-free cache key 'tm_values_202425' must not be used"
+    )
