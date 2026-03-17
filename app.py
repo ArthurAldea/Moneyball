@@ -99,6 +99,8 @@ def load_data() -> pd.DataFrame:
 
 def get_available_clubs(df: pd.DataFrame, leagues: list) -> list:
     """Return sorted unique Squad values for rows where League is in leagues."""
+    if df.empty or "League" not in df.columns or "Squad" not in df.columns:
+        return []
     return sorted(
         df[df["League"].isin(leagues)]["Squad"].dropna().unique().tolist()
     )
@@ -115,8 +117,10 @@ def apply_filters(
 ) -> pd.DataFrame:
     """Apply all 6 filters sequentially. Returns filtered, reset-indexed DataFrame."""
     result = df.copy()
+    if result.empty:
+        return result
     # FILTER-01 league
-    if leagues:
+    if leagues and "League" in result.columns:
         result = result[result["League"].isin(leagues)]
     # FILTER-02 position
     if positions:
