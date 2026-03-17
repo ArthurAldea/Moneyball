@@ -17,7 +17,7 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.linear_model import LinearRegression
 
-from config import PILLARS_FW, PILLARS_MF, PILLARS_DF, GK_PILLARS
+from config import PILLARS_FW, PILLARS_MF, PILLARS_DF, GK_PILLARS, LEAGUE_QUALITY_MULTIPLIERS
 
 
 # ── Team Strength Adjustment constants (SCORE-04) ─────────────────────────────
@@ -242,6 +242,25 @@ def compute_age_weighted_uv(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def apply_league_quality_multiplier(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Multiply uv_score_age_weighted by the per-league quality coefficient (SCORE-05).
+
+    Stores coefficient as separate league_quality_multiplier column (for dashboard display).
+    Updates uv_score_age_weighted in-place so Phase 5/6 consumers see the adjusted value.
+    Unknown leagues default to multiplier 1.0 (neutral).
+    """
+    df = df.copy()
+    df["league_quality_multiplier"] = (
+        df["League"].map(LEAGUE_QUALITY_MULTIPLIERS).fillna(1.0)
+        if "League" in df.columns
+        else 1.0
+    )
+    if "uv_score_age_weighted" in df.columns:
+        df["uv_score_age_weighted"] = df["uv_score_age_weighted"] * df["league_quality_multiplier"]
+    return df
+
+
 def get_top_undervalued(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
     return df.head(n)
 
@@ -267,4 +286,6 @@ def run_scoring_pipeline(fbref_data: dict,
     df = compute_efficiency(df)   # UV regression — always on full unfiltered pool (SCORE-06)
     print("[scorer] Computing age-weighted UV scores...")
     df = compute_age_weighted_uv(df)
+    print("[scorer] Applying league quality multiplier (SCORE-05)...")
+    df = apply_league_quality_multiplier(df)
     return df

@@ -119,6 +119,17 @@ TM_LEAGUE_URLS = {
     "SerieA":     "https://www.transfermarkt.com/serie-a/startseite/wettbewerb/IT1",
     "Ligue1":     "https://www.transfermarkt.com/ligue-1/startseite/wettbewerb/FR1",
 }
+# ── League quality multipliers (SCORE-05) ─────────────────────────────────────
+# Applied to uv_score_age_weighted after age-weighting step.
+# Coefficients reflect UEFA club competition coefficient ranking.
+LEAGUE_QUALITY_MULTIPLIERS = {
+    "EPL":        1.10,
+    "LaLiga":     1.08,
+    "Bundesliga": 1.05,
+    "SerieA":     1.03,
+    "Ligue1":     1.00,
+}
+
 TM_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "

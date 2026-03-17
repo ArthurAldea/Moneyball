@@ -442,13 +442,49 @@ def test_team_strength_skips_nan_league_position():
 
 # ── Phase 4 Plan 02: League Quality Multiplier tests (SCORE-05) ──────────────
 
-@pytest.mark.xfail(reason="SCORE-05: apply_league_quality_multiplier not yet implemented", strict=True)
 def test_league_quality_multiplier_values():
     """Each player row must have league_quality_multiplier consistent with locked coefficients."""
-    assert False, "stub — implement in plan 04-02 task 2"
+    from scorer import apply_league_quality_multiplier
+
+    df = pd.DataFrame({
+        "Player":               ["EPL_P", "LaLiga_P", "Bundesliga_P", "SerieA_P", "Ligue1_P", "Unknown_P"],
+        "League":               ["EPL",   "LaLiga",   "Bundesliga",   "SerieA",   "Ligue1",   "SomeCup"],
+        "uv_score_age_weighted": [50.0,    50.0,       50.0,           50.0,       50.0,       50.0],
+    })
+    result = apply_league_quality_multiplier(df)
+
+    assert "league_quality_multiplier" in result.columns, "league_quality_multiplier column missing"
+
+    def _mult(league):
+        return result.loc[result["League"] == league, "league_quality_multiplier"].iloc[0]
+
+    assert abs(_mult("EPL")        - 1.10) < 1e-9, f"EPL multiplier: {_mult('EPL')}"
+    assert abs(_mult("LaLiga")     - 1.08) < 1e-9, f"LaLiga multiplier: {_mult('LaLiga')}"
+    assert abs(_mult("Bundesliga") - 1.05) < 1e-9, f"Bundesliga multiplier: {_mult('Bundesliga')}"
+    assert abs(_mult("SerieA")     - 1.03) < 1e-9, f"SerieA multiplier: {_mult('SerieA')}"
+    assert abs(_mult("Ligue1")     - 1.00) < 1e-9, f"Ligue1 multiplier: {_mult('Ligue1')}"
+    assert abs(_mult("SomeCup")    - 1.00) < 1e-9, f"Unknown league fallback should be 1.0, got: {_mult('SomeCup')}"
 
 
-@pytest.mark.xfail(reason="SCORE-05: apply_league_quality_multiplier not yet implemented", strict=True)
 def test_league_quality_multiplier_applied_in_place():
     """uv_score_age_weighted must be multiplied in-place by the league quality multiplier."""
-    assert False, "stub — implement in plan 04-02 task 2"
+    from scorer import apply_league_quality_multiplier
+
+    df = pd.DataFrame({
+        "Player":               ["EPL_P", "Ligue1_P"],
+        "League":               ["EPL",   "Ligue1"],
+        "uv_score_age_weighted": [50.0,    50.0],
+    })
+    result = apply_league_quality_multiplier(df)
+
+    assert "league_quality_multiplier" in result.columns, "league_quality_multiplier column missing"
+
+    epl_row    = result[result["League"] == "EPL"].iloc[0]
+    ligue1_row = result[result["League"] == "Ligue1"].iloc[0]
+
+    assert abs(epl_row["uv_score_age_weighted"] - 55.0) < 1e-9, (
+        f"EPL uv_score_age_weighted: expected 55.0 (50.0 * 1.10), got {epl_row['uv_score_age_weighted']}"
+    )
+    assert abs(ligue1_row["uv_score_age_weighted"] - 50.0) < 1e-9, (
+        f"Ligue1 uv_score_age_weighted: expected 50.0 (50.0 * 1.00), got {ligue1_row['uv_score_age_weighted']}"
+    )
