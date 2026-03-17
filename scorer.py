@@ -12,10 +12,12 @@ UV Score uses position-aware regression residuals:
   UV = percentile rank of (predicted − actual log-value); 100 = most undervalued.
 """
 
+import json
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics.pairwise import cosine_similarity
 
 from config import PILLARS_FW, PILLARS_MF, PILLARS_DF, GK_PILLARS, LEAGUE_QUALITY_MULTIPLIERS
 
@@ -24,6 +26,12 @@ from config import PILLARS_FW, PILLARS_MF, PILLARS_DF, GK_PILLARS, LEAGUE_QUALIT
 _DF_DEFENSIVE_STATS = ["Tkl_p90", "Int_p90", "Blocks_p90", "DuelsWon_p90", "Pres_p90"]
 _GK_RATE_STATS = ["Save%", "PSxG/SoT"]
 _TEAM_STRENGTH_MAGNITUDE = 0.10  # ±10%
+
+# ── Similar Players constants (SCORE-08) ──────────────────────────────────────
+_SCORE_COLS = [
+    "score_attacking", "score_progression", "score_creation",
+    "score_defense", "score_retention",
+]
 
 
 def apply_team_strength_adjustment(df: pd.DataFrame) -> pd.DataFrame:
@@ -261,6 +269,58 @@ def apply_league_quality_multiplier(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def compute_similar_players(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    For each player, find the top 5 most similar players by style (SCORE-08).
+
+    Similarity metric: cosine similarity on score_attacking, score_progression,
+    score_creation, score_defense, score_retention (per-league-normalised pillars).
+    Scoped within the same position group (GK/FW/MF/DF) across all 5 leagues.
+    Self excluded. Ties broken by original DataFrame order (np.argsort is stable).
+
+    Output: similar_players column — JSON string, list of 5 dicts:
+        [{"player": str, "club": str, "league": str, "uv_score_age_weighted": float}, ...]
+
+    Players in groups with fewer than 2 members get similar_players = "[]".
+    """
+    df = df.copy()
+    df["similar_players"] = "[]"
+
+    for pos in ["GK", "FW", "MF", "DF"]:
+        group_mask = df["Pos"] == pos
+        group_idx = df.index[group_mask].tolist()
+        if len(group_idx) < 2:
+            continue
+
+        group_df = df.loc[group_idx]
+        matrix = group_df[_SCORE_COLS].fillna(0).values  # shape (n, 5)
+        sim_matrix = cosine_similarity(matrix)            # shape (n, n)
+
+        for i, idx in enumerate(group_idx):
+            sims = sim_matrix[i].copy()
+            sims[i] = -1  # exclude self
+
+            n_candidates = len(group_idx) - 1  # max possible (excluding self)
+            top_k = min(5, n_candidates)
+            top_local = np.argsort(sims)[::-1][:top_k]
+
+            similar = []
+            for j in top_local:
+                peer = group_df.iloc[j]
+                similar.append({
+                    "player": str(peer["Player"]),
+                    "club":   str(peer["Squad"]),
+                    "league": str(peer["League"]),
+                    "uv_score_age_weighted": float(peer["uv_score_age_weighted"])
+                    if pd.notna(peer["uv_score_age_weighted"])
+                    else 0.0,
+                })
+
+            df.at[idx, "similar_players"] = json.dumps(similar)
+
+    return df
+
+
 def get_top_undervalued(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
     return df.head(n)
 
@@ -288,4 +348,6 @@ def run_scoring_pipeline(fbref_data: dict,
     df = compute_age_weighted_uv(df)
     print("[scorer] Applying league quality multiplier (SCORE-05)...")
     df = apply_league_quality_multiplier(df)
+    print("[scorer] Computing similar players (SCORE-08)...")
+    df = compute_similar_players(df)
     return df

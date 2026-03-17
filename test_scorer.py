@@ -2,6 +2,7 @@
 test_scorer.py — Scorer unit tests for Phase 2.
 Stubs created in Wave 0; implementations filled in as plans complete.
 """
+import json
 import pytest
 import pandas as pd
 import numpy as np
@@ -492,25 +493,120 @@ def test_league_quality_multiplier_applied_in_place():
 
 # ── Phase 4 Plan 03: Similar Players tests (SCORE-08) ────────────────────────
 
-@pytest.mark.xfail(reason="SCORE-08: compute_similar_players not yet implemented", strict=True)
+def _make_players(n, pos, squads=None, leagues=None, scores=None):
+    """Build a synthetic DataFrame with valid score_* columns for similar player tests."""
+    players = [f"{pos}_Player{i}" for i in range(n)]
+    if squads is None:
+        squads = ["TeamA"] * n
+    if leagues is None:
+        leagues = ["EPL"] * n
+    if scores is None:
+        # Use diverse scores so cosine similarity produces meaningful ordering
+        scores = [
+            [0.8 - i * 0.05, 0.7 - i * 0.04, 0.6 - i * 0.03, 0.5 - i * 0.02, 0.4 - i * 0.01]
+            for i in range(n)
+        ]
+    return pd.DataFrame({
+        "Player":              players,
+        "Squad":               squads,
+        "League":              leagues,
+        "Pos":                 [pos] * n,
+        "score_attacking":     [s[0] for s in scores],
+        "score_progression":   [s[1] for s in scores],
+        "score_creation":      [s[2] for s in scores],
+        "score_defense":       [s[3] for s in scores],
+        "score_retention":     [s[4] for s in scores],
+        "uv_score_age_weighted": [50.0] * n,
+    })
+
+
 def test_similar_players_column_is_valid_json():
     """similar_players column must exist and contain valid JSON on every row."""
-    assert False, "stub — implement in plan 04-03 task 2"
+    from scorer import compute_similar_players
+
+    df = _make_players(8, "DF")
+    result = compute_similar_players(df)
+
+    assert "similar_players" in result.columns, "similar_players column missing"
+    for i in result.index:
+        raw = result.loc[i, "similar_players"]
+        parsed = json.loads(raw)
+        assert isinstance(parsed, list), f"Row {i}: expected list, got {type(parsed)}"
+        assert len(parsed) == 5, f"Row {i}: expected 5 similar players, got {len(parsed)}"
+        for entry in parsed:
+            assert "player" in entry, f"Row {i}: entry missing 'player' key: {entry}"
+            assert "club" in entry, f"Row {i}: entry missing 'club' key: {entry}"
+            assert "league" in entry, f"Row {i}: entry missing 'league' key: {entry}"
+            assert "uv_score_age_weighted" in entry, f"Row {i}: entry missing 'uv_score_age_weighted' key: {entry}"
 
 
-@pytest.mark.xfail(reason="SCORE-08: compute_similar_players not yet implemented", strict=True)
 def test_similar_players_same_position_group():
     """All 5 similar players for any given player must be the same position group."""
-    assert False, "stub — implement in plan 04-03 task 2"
+    from scorer import compute_similar_players
+
+    fw_df = _make_players(6, "FW")
+    df_df = _make_players(6, "DF")
+    combined = pd.concat([fw_df, df_df], ignore_index=True)
+    result = compute_similar_players(combined)
+
+    fw_players = set(fw_df["Player"].tolist())
+    df_players = set(df_df["Player"].tolist())
+
+    for _, row in result.iterrows():
+        player_name = row["Player"]
+        similar = json.loads(row["similar_players"])
+        similar_names = {e["player"] for e in similar}
+
+        if player_name in fw_players:
+            assert similar_names.issubset(fw_players), (
+                f"FW player {player_name} has non-FW similar players: "
+                f"{similar_names - fw_players}"
+            )
+        elif player_name in df_players:
+            assert similar_names.issubset(df_players), (
+                f"DF player {player_name} has non-DF similar players: "
+                f"{similar_names - df_players}"
+            )
 
 
-@pytest.mark.xfail(reason="SCORE-08: compute_similar_players not yet implemented", strict=True)
 def test_similar_players_excludes_self():
     """No player may appear in their own similar_players list."""
-    assert False, "stub — implement in plan 04-03 task 2"
+    from scorer import compute_similar_players
+
+    df = _make_players(8, "DF")
+    result = compute_similar_players(df)
+
+    for _, row in result.iterrows():
+        player_name = row["Player"]
+        similar = json.loads(row["similar_players"])
+        similar_names = [e["player"] for e in similar]
+        assert player_name not in similar_names, (
+            f"Player {player_name} appears in their own similar_players list"
+        )
 
 
-@pytest.mark.xfail(reason="SCORE-08: compute_similar_players not yet implemented", strict=True)
 def test_similar_players_cross_league():
     """Similar players may span multiple leagues (not restricted to same league)."""
-    assert False, "stub — implement in plan 04-03 task 2"
+    from scorer import compute_similar_players
+
+    # 4 EPL + 4 LaLiga DF players, all with very similar scores → cross-league matches expected
+    epl_scores = [[0.80, 0.70, 0.60, 0.50, 0.40]] * 4
+    liga_scores = [[0.79, 0.69, 0.59, 0.49, 0.39]] * 4
+    epl_df = _make_players(4, "DF", squads=["EPL_Club"] * 4, leagues=["EPL"] * 4, scores=epl_scores)
+    liga_df = _make_players(4, "DF", squads=["Liga_Club"] * 4, leagues=["LaLiga"] * 4, scores=liga_scores)
+    combined = pd.concat([epl_df, liga_df], ignore_index=True)
+    result = compute_similar_players(combined)
+
+    # For at least one player, their similar list should include players from both leagues
+    cross_league_found = False
+    for _, row in result.iterrows():
+        similar = json.loads(row["similar_players"])
+        leagues_in_similar = {e["league"] for e in similar}
+        if len(leagues_in_similar) > 1:
+            cross_league_found = True
+            break
+
+    assert cross_league_found, (
+        "No player has similar players from multiple leagues — "
+        "cross-league similarity is required (SCORE-08)"
+    )
