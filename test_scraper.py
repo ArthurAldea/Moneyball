@@ -15,7 +15,6 @@ import tempfile
 
 import pandas as pd
 import pytest
-import requests
 
 from scraper import (
     scrape_tm_season,
@@ -23,7 +22,8 @@ from scraper import (
     run_fbref_scrapers,
     _fbref_cache_path,
     _is_fresh,
-    _fetch_with_backoff,
+    _playwright_fetch,
+    _do_playwright_get,
     _extract_fbref_table,
 )
 from config import (
@@ -103,32 +103,33 @@ def test_rate_limit_delay():
 
 def test_backoff_on_429(monkeypatch):
     """
-    _fetch_with_backoff raises RuntimeError after FBREF_BACKOFF_SEQUENCE exhausted.
-    Verifies: 429 triggers backoff; 4th consecutive 429 raises RuntimeError.
+    _playwright_fetch raises RuntimeError after FBREF_BACKOFF_SEQUENCE exhausted.
+    Verifies: Cloudflare challenge HTML triggers backoff; 4th consecutive challenge raises RuntimeError.
+    Monkeypatches _do_playwright_get (the inner browser call) to return challenge HTML every time.
     """
+    import scraper as scraper_module
+
     call_count = {"n": 0}
     sleep_calls = []
 
-    def fake_get(url, headers, timeout):
+    def fake_do_playwright_get(url):
         call_count["n"] += 1
-        mock_resp = requests.models.Response()
-        mock_resp.status_code = 429
-        return mock_resp
+        return "Just a moment..."  # simulate Cloudflare challenge page
 
     def fake_sleep(seconds):
         sleep_calls.append(seconds)
 
-    monkeypatch.setattr(requests, "get", fake_get)
+    monkeypatch.setattr(scraper_module, "_do_playwright_get", fake_do_playwright_get)
     monkeypatch.setattr(time, "sleep", fake_sleep)
 
-    with pytest.raises(RuntimeError, match="429"):
-        _fetch_with_backoff("https://fbref.com/test", {})
+    with pytest.raises(RuntimeError, match="Cloudflare challenge not resolved"):
+        _playwright_fetch("https://fbref.com/test")
 
-    # Should have attempted len(FBREF_BACKOFF_SEQUENCE) + 1 times
+    # Should have attempted len(FBREF_BACKOFF_SEQUENCE) + 1 times (3 retries + final attempt)
     assert call_count["n"] == len(FBREF_BACKOFF_SEQUENCE) + 1, (
         f"Expected {len(FBREF_BACKOFF_SEQUENCE) + 1} attempts, got {call_count['n']}"
     )
-    # Should have slept for each backoff delay in sequence
+    # Should have slept for each backoff delay in sequence (not the final None)
     assert sleep_calls == FBREF_BACKOFF_SEQUENCE, (
         f"Expected sleep calls {FBREF_BACKOFF_SEQUENCE}, got {sleep_calls}"
     )
@@ -182,21 +183,16 @@ def test_table_extraction():
 def test_column_presence(monkeypatch, tmp_path):
     """
     scrape_fbref_stat returns a DataFrame containing at least Player, Min columns
-    when given a mock HTTP response containing the minimal FBref table fixture.
+    when given mock HTML via _playwright_fetch returning the minimal FBref table fixture.
     """
-    import requests as req_module
     import scraper as scraper_module
 
     # Point CACHE_DIR to tmp_path to avoid polluting real cache
     monkeypatch.setattr(scraper_module, "CACHE_DIR", str(tmp_path))
 
-    def fake_get(url, headers, timeout):
-        mock_resp = req_module.models.Response()
-        mock_resp.status_code = 200
-        mock_resp._content = MINIMAL_FBREF_TABLE_HTML.encode("utf-8")
-        return mock_resp
-
-    monkeypatch.setattr(req_module, "get", fake_get)
+    # Monkeypatch _playwright_fetch (not requests.get) — returns HTML string directly
+    monkeypatch.setattr(scraper_module, "_playwright_fetch",
+                        lambda url: MINIMAL_FBREF_TABLE_HTML)
     monkeypatch.setattr(time, "sleep", lambda s: None)
 
     df = scrape_fbref_stat("stats_standard", "2024-25", league="EPL")
