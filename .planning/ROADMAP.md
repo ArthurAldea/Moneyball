@@ -130,13 +130,14 @@ Plans:
 
 ### Phase 05.1: Fix FBref scraping — replace requests with Playwright to bypass Cloudflare JS challenge (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Replace `_fetch_with_backoff()` in scraper.py with a Playwright-based fetch (`_playwright_fetch()`) that can execute Cloudflare's JS challenge. Remove the `cache/test_data.csv` test shim from app.py. All existing scraper tests must remain green.
+**Requirements:** DATA-06
 **Depends on:** Phase 5
-**Plans:** 2/2 plans complete
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 05.1 to break down)
+- [ ] 05.1-01-PLAN.md — Add _playwright_fetch + _do_playwright_get to scraper.py; update test_scraper.py
+- [ ] 05.1-02-PLAN.md — Remove test_data.csv shim from app.py load_data()
 
 ### Phase 6: Player Deep Profile
 
