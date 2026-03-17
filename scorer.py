@@ -138,8 +138,8 @@ def compute_age_weighted_uv(df: pd.DataFrame) -> pd.DataFrame:
 
     Age values:
         17 → weight 1.00 → multiplier 1.30
-        21 → weight 0.69 → multiplier 1.21
-        25 → weight 0.30 → multiplier 1.09
+        21 → weight 0.84 → multiplier 1.25
+        25 → weight 0.56 → multiplier 1.17
         29+ → weight 0.00 → multiplier 1.00
     """
     import math
