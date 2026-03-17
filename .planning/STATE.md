@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 4
 status: planning
-stopped_at: Plan 03-03 executed (per-league MinMaxScaler normalization; Phase 3 complete; 40 tests green)
-last_updated: "2026-03-17T02:08:38.309Z"
+stopped_at: Completed 04-02-PLAN.md (SCORE-05 league quality multiplier; 33 tests green)
+last_updated: "2026-03-17T03:17:41.840Z"
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 13
+  completed_plans: 12
 ---
 
 # Project State
@@ -73,6 +73,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 - **xAG->xA rename at scrape time:** Applied inside scrape_fbref_stat for stats_standard so Phase 2 merger is agnostic of FBref's 2022-23 column rename.
 - **scrape_fbref_stat prefix normalisation:** Accepts both "standard" and "stats_standard" — preserves test_scraper.py call signature without modification.
 - **run_fbref_scrapers league-first nesting:** Returns `{league: {season: {table_type: df}}}` — league-first aligns with Phase 3 multi-league iteration pattern.
+- [Phase 04-advanced-scoring]: LEAGUE_QUALITY_MULTIPLIERS placed after TM_LEAGUE_URLS in config.py; unknown leagues get 1.0 fallback via fillna; league_quality_multiplier stored as separate column for Phase 5 dashboard display
 
 ## Progress
 Phase 1: [████████████████████] 3/3 plans (100%) — Complete
@@ -80,9 +81,9 @@ Phase 2: [████████████████████] 4/4 plan
 Phase 3: [████████████████████] 3/3 plans (100%) — Complete
 
 ## Session Continuity
-Last session: 2026-03-17T06:00:00.000Z
-Stopped at: Plan 03-03 executed (per-league MinMaxScaler normalization; Phase 3 complete; 40 tests green)
-Resume file: .planning/phases/03-multi-league-expansion/03-03-SUMMARY.md
+Last session: 2026-03-17T03:17:41.836Z
+Stopped at: Completed 04-02-PLAN.md (SCORE-05 league quality multiplier; 33 tests green)
+Resume file: None
 
 ## Blockers/Concerns
 - None. Phase 3 complete; 40 tests green. Ready for Phase 4 (Advanced Scoring).

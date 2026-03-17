@@ -7,7 +7,7 @@
 | 1 | FBref Scraper (EPL) | Replace Understat + API-Football with a complete FBref scraper covering all required stat tables for EPL only | DATA-01 (EPL), DATA-02, DATA-05, DATA-06, DATA-07 | ✅ Complete |
 | 2 | Merger & Scorer Rewrite (EPL End-to-End) | Rebuild merger and scorer to ingest FBref columns, confirm all pillar models produce sensible scores for EPL, and add age-weighted UV | DATA-03, SCORE-01, SCORE-02, SCORE-03, SCORE-06, SCORE-07 | ✅ Complete |
 | 3 | Multi-League Expansion | Complete    | 2026-03-17 | ✅ Complete |
-| 4 | Advanced Scoring | Apply team strength adjustment and league quality multiplier across the full five-league pool; add cosine similar-player computation | SCORE-04, SCORE-05, SCORE-08 | Not Started |
+| 4 | 2/3 | In Progress|  | Not Started |
 | 5 | Dashboard Rebuild — Shortlist & Filters | Replace current tab layout with shortlist-first landing page, all six filters, professional dark theme, and UV scatter plot | FILTER-01, FILTER-02, FILTER-03, FILTER-04, FILTER-05, FILTER-06, DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06, DASH-07 | Not Started |
 | 6 | Player Deep Profile | Add drill-down player profile with radar chart, full per-90 stat table with percentile bars, scatter highlight, and similar players panel | PROFILE-01, PROFILE-02, PROFILE-03, PROFILE-04, PROFILE-05 | Not Started |
 
@@ -90,7 +90,7 @@
 
 **Requirements:** SCORE-04, SCORE-05, SCORE-08
 
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 04-01-PLAN.md — Config + Merger fixes + team strength adjustment (SCORE-04)

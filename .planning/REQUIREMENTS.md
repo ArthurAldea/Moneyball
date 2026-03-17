@@ -22,7 +22,7 @@
 - [ ] **SCORE-02**: MF Progression pillar uses `0.6 × PrgP_p90 + 0.4 × SCA_p90` (replaces `xGChain_p90` from Understat)
 - [ ] **SCORE-03**: FW and DF Progression pillar uses `PrgC_p90` (progressive carries per 90, replaces `xGBuildup_p90` from Understat)
 - [ ] **SCORE-04**: System applies team strength adjustment: ±20% multiplier on defensive per-90 stats (Tkl, Int, Blocks, DuelsWon, pressures, GK saves/conceded) based on league position — bottom-half clubs upward, top-half downward
-- [ ] **SCORE-05**: System applies a league quality multiplier to stats before cross-league comparison, based on UEFA club coefficient rankings (EPL highest weight, Ligue 1 lowest among top 5)
+- [x] **SCORE-05**: System applies a league quality multiplier to stats before cross-league comparison, based on UEFA club coefficient rankings (EPL highest weight, Ligue 1 lowest among top 5)
 - [ ] **SCORE-06**: UV Score regression (`log10(market_value) ~ scout_score + position_dummies`) is fitted on the full unfiltered player pool — never on a filtered view
 - [ ] **SCORE-07**: Age-weighted UV Score is computed: `uv_score_age_weighted = uv_score × (1 + 0.30 × age_weight)` where `age_weight` uses log-decay from age 17 to 29, capped at 1.5× for players under 21. Both `uv_score` and `uv_score_age_weighted` are stored as separate columns.
 - [ ] **SCORE-08**: System identifies top 5 similar players per player using cosine similarity on the 5 normalized pillar score columns, within the same position group, across all 5 leagues
