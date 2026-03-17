@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 05.1
+current_phase: 06
 status: planning
-stopped_at: Completed 05.1-02 — Removed test_data.csv shim from load_data()
-last_updated: "2026-03-17T19:25:00.000Z"
+stopped_at: Phase 05.1 verified — 63 tests green, VERIFICATION.md written
+last_updated: "2026-03-17T20:00:00.000Z"
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 17
   completed_plans: 17
 ---
 
 # Project State
 
-**Current Phase:** 05.1
-**Status:** Phase 05.1 complete — all 2 plans done
-**Last Updated:** 2026-03-17 (Plan 05.1-02 executed)
+**Current Phase:** 06 (Phase 5.1 verified, ready for Phase 6)
+**Status:** Phase 05.1 verified — 63 tests green
+**Last Updated:** 2026-03-17 (Phase 05.1 verification complete)
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-03-16)
@@ -32,14 +32,14 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 | 2 | Merger & Scorer Rewrite (EPL End-to-End) | ✅ Complete (4/4 plans done) |
 | 3 | Multi-League Expansion | ✅ Complete (3/3 plans done) |
 | 4 | Advanced Scoring | ✅ Complete (3/3 plans done) |
-| 5.1 | Fix FBref Scraping — Playwright Cloudflare bypass | ✅ Complete (2/2 plans done) |
+| 5.1 | Fix FBref Scraping — Playwright Cloudflare bypass | ✅ Verified (2/2 plans, 63 tests green) |
 | 5 | Dashboard Rebuild — Shortlist & Filters | 🔲 Not Started |
 | 6 | Player Deep Profile | 🔲 Not Started |
 
 ## Current Position
 
-**Plan:** 05.1-02 complete. Phase 05.1 done.
-**Next:** Phase 5 — Dashboard Rebuild (originally planned; Phase 05.1 was an urgent fix inserted before it)
+**Plan:** Phase 05.1 verified.
+**Next:** Phase 6 — Player Deep Profile (Phase 5 Dashboard Rebuild already complete)
 
 ## Accumulated Decisions
 
