@@ -142,3 +142,20 @@ def test_uv_regression_full_pool():
     # The full-pool UV score for FW players should be computed on full pool
     # i.e. full_result contains all 20 players, not just FWs
     assert len(full_result) == n, f"Full pool result should have {n} rows, got {len(full_result)}"
+
+
+# ── Phase 3: Multi-league scorer tests ───────────────────────────────────────
+
+def test_per_league_normalization_isolation():
+    """compute_scout_scores normalizes per-league: top FW in each league scores near 100 independently."""
+    pytest.skip("stub — implemented in Plan 03-03 Task 3")
+
+
+def test_uv_regression_on_full_pool_multi_league():
+    """compute_efficiency fits UV regression on full 5-league pool; len(result) equals total player count."""
+    pytest.skip("stub — implemented in Plan 03-03 Task 3")
+
+
+def test_league_column_preserved_through_pipeline():
+    """run_scoring_pipeline output has League column with correct values for each player."""
+    pytest.skip("stub — implemented in Plan 03-03 Task 3")
