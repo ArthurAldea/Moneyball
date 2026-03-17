@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 4
 status: executing
-stopped_at: Completed 05-01-PLAN.md — test scaffold with 12 RED tests
-last_updated: "2026-03-17T05:58:29.443Z"
+stopped_at: Completed 05-02 Task 1 — app.py rewrite done; awaiting Task 2 visual verification checkpoint
+last_updated: "2026-03-17T06:13:41.390Z"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 15
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # Project State
@@ -79,6 +79,9 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 - [Phase 04-advanced-scoring]: LEAGUE_QUALITY_MULTIPLIERS placed after TM_LEAGUE_URLS in config.py; unknown leagues get 1.0 fallback via fillna; league_quality_multiplier stored as separate column for Phase 5 dashboard display
 - [Phase 05]: conftest.py Streamlit stub installed via sys.modules injection — prevents module-level network calls during test collection for Streamlit apps
 - [Phase 05]: _require_app() TDD guard pattern: import wrapped in BaseException handler, each test calls guard first — 12 RED tests collectible before any implementation
+- [Phase 05]: conftest.py st.stop() changed to no-op: old SystemExit subclass was caught by BaseException in test_app.py, blocking all 12 tests
+- [Phase 05]: _NoopCtx.__getitem__ added to support table_state['selection']['rows'] dict-style access in app.py row selection
+- [Phase 05]: apply_filters default args added so tests can call with a single named param (e.g., leagues=[]) without passing all 6 args
 
 ## Progress
 Phase 1: [████████████████████] 3/3 plans (100%) — Complete
@@ -87,8 +90,8 @@ Phase 3: [████████████████████] 3/3 plan
 Phase 4: [████████████████████] 3/3 plans (100%) — Complete
 
 ## Session Continuity
-Last session: 2026-03-17T05:58:29.440Z
-Stopped at: Completed 05-01-PLAN.md — test scaffold with 12 RED tests
+Last session: 2026-03-17T06:13:41.384Z
+Stopped at: Completed 05-02 Task 1 — app.py rewrite done; awaiting Task 2 visual verification checkpoint
 Resume file: None
 
 ## Blockers/Concerns

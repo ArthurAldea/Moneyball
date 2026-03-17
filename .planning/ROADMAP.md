@@ -8,7 +8,7 @@
 | 2 | Merger & Scorer Rewrite (EPL End-to-End) | Rebuild merger and scorer to ingest FBref columns, confirm all pillar models produce sensible scores for EPL, and add age-weighted UV | DATA-03, SCORE-01, SCORE-02, SCORE-03, SCORE-06, SCORE-07 | ✅ Complete |
 | 3 | Multi-League Expansion | Complete    | 2026-03-17 | ✅ Complete |
 | 4 | Advanced Scoring | Apply team strength, league quality multiplier, and cosine similarity similar players | SCORE-04, SCORE-05, SCORE-08 | ✅ Complete |
-| 5 | 1/2 | In Progress|  | Not Started |
+| 5 | 2/2 | Complete   | 2026-03-17 | Not Started |
 | 6 | Player Deep Profile | Add drill-down player profile with radar chart, full per-90 stat table with percentile bars, scatter highlight, and similar players panel | PROFILE-01, PROFILE-02, PROFILE-03, PROFILE-04, PROFILE-05 | Not Started |
 
 ---
@@ -113,7 +113,7 @@ Plans:
 
 **Status:** Not Started — 2 plans ready
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 05-01-PLAN.md — Test scaffold: test_app.py with fixture factory + 12 failing unit tests
