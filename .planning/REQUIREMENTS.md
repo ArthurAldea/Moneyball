@@ -40,7 +40,7 @@
 
 - [x] **DASH-01**: Landing page displays a ranked shortlist table sorted by `uv_score_age_weighted` (descending) by default
 - [x] **DASH-02**: Shortlist table shows: Player, Club, League, Position, Age, Scout Score, UV Score, Age-Weighted UV Score, Market Value (€M), Value Gap (€M)
-- [ ] **DASH-03**: User can click any column header to sort the shortlist by that column
+- [x] **DASH-03**: User can click any column header to sort the shortlist by that column
 - [x] **DASH-04**: User can click any row to open the player deep profile
 
 ### Dashboard — Design
