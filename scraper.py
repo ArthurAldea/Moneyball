@@ -276,6 +276,67 @@ def scrape_fbref_stat(
     return df
 
 
+def scrape_fbref_standings(league: str = "EPL", season: str = "2024-25") -> pd.DataFrame:
+    """
+    Scrape EPL league standings from FBref. Returns DataFrame with Squad, Rk columns.
+    Cached at cache/fbref_{league}_standings_{season}.csv with 7-day TTL.
+    Reuses _extract_fbref_table and _fetch_with_backoff from scrape_fbref_stat.
+    """
+    cache_path = _fbref_cache_path(league, "standings", season)
+    if _is_fresh(cache_path):
+        return pd.read_csv(cache_path)
+
+    # Build standings URL: same base as stats but no table_type segment
+    # e.g. https://fbref.com/en/comps/9/2024-2025/2024-2025-Premier-League-Stats
+    league_cfg = FBREF_LEAGUES[league]
+    comp_id = league_cfg["comp_id"]
+    slug    = league_cfg["slug"]
+    parts   = season.split("-")
+    start   = int(parts[0])
+    season_long = f"{start}-{start + 1}"
+    url = f"https://fbref.com/en/comps/{comp_id}/{season_long}/{season_long}-{slug}-Stats"
+
+    html = _fetch_with_backoff(url, FBREF_HEADERS)
+
+    # Try the known table ID first; fall back to scanning all comment nodes
+    table_id = f"results{season_long}{comp_id}1_home"
+    try:
+        df = _extract_fbref_table(html, table_id)
+    except (ValueError, Exception):
+        df = None
+
+    if df is None or df.empty or "Rk" not in df.columns:
+        # Fallback: scan all HTML comment nodes for a table with Rk + Squad columns
+        from bs4 import BeautifulSoup, Comment
+        soup = BeautifulSoup(html, "lxml")
+        df = None
+        for comment in soup.find_all(string=lambda t: isinstance(t, Comment)):
+            if "<table" not in comment:
+                continue
+            try:
+                tables = pd.read_html(str(comment), header=0)
+                for t in tables:
+                    if "Rk" in t.columns and "Squad" in t.columns:
+                        df = t
+                        break
+            except Exception:
+                continue
+            if df is not None:
+                break
+
+    if df is None or df.empty:
+        raise RuntimeError(f"Could not find standings table for {league} {season}")
+
+    # Keep only Rk and Squad; drop summary rows (Rk is non-numeric in separator rows)
+    df = df[["Rk", "Squad"]].copy()
+    df["Rk"] = pd.to_numeric(df["Rk"], errors="coerce")
+    df = df.dropna(subset=["Rk"]).reset_index(drop=True)
+    df["Rk"] = df["Rk"].astype(int)
+
+    df.to_csv(cache_path, index=False)
+    return df
+
+
 def run_fbref_scrapers(
     leagues: list | None = None,
     seasons: list | None = None,
