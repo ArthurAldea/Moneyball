@@ -42,6 +42,10 @@ key-decisions:
   - "conftest.py column_config stub added as inner class module with TextColumn and NumberColumn — required for COLUMN_CONFIG module-level constant in app.py"
   - "apply_filters default arguments added (leagues=None, positions=None, etc.) so test_app.py can call with only the param being tested"
   - "scatter_chart receives filtered df with raw EUR, not display_df (which has EUR converted to M) — critical for correct _mv_m computation in hovertemplate"
+  - "stHeader and stToolbar CSS added to NAVY_CSS to force navy background on Streamlit top bar (not covered by stAppViewContainer)"
+  - "stDataFrame and stDataFrameResizable CSS added to remove cyberpunk-era table styling"
+  - "Club filter default changed from available_clubs to [] (blank = all, via existing if-not guard)"
+  - "prepare_display_df applies _parse_age and casts Age to Int64 so FBref years-days strings show as integers"
 
 patterns-established:
   - "Pattern: conftest Streamlit stub must grow as app.py uses new st.* calls; always add missing stubs before each phase"
@@ -63,7 +67,7 @@ requirements-completed:
   - DASH-07
 
 # Metrics
-duration: 13min
+duration: ~60min
 completed: 2026-03-17
 ---
 
@@ -73,10 +77,10 @@ completed: 2026-03-17
 
 ## Performance
 
-- **Duration:** 13 min
+- **Duration:** ~60 min
 - **Started:** 2026-03-17T05:59:30Z
-- **Completed:** 2026-03-17T06:12:07Z
-- **Tasks:** 1/1 complete (Task 2 is checkpoint:human-verify — awaiting visual approval)
+- **Completed:** 2026-03-17
+- **Tasks:** 2/2 complete (Task 1: implementation, Task 2: visual verification + post-review fixes)
 - **Files modified:** 2
 
 ## Accomplishments
@@ -84,12 +88,14 @@ completed: 2026-03-17
 - All 13 Phase 5 requirements (FILTER-01–06, DASH-01–07) implemented in app.py
 - All 12 new test_app.py tests pass (GREEN); all 51 pre-existing tests continue to pass (63 total)
 - conftest.py Streamlit stub extended with 3 missing attributes (column_config, divider, __getitem__) to support new app.py API surface
+- 4 post-review visual fixes applied: top bar navy CSS, dataframe theme CSS, club filter blank default, age integer format via _parse_age
 
 ## Task Commits
 
 Each task was committed atomically:
 
 1. **Task 1: Write pure-Python module constants and functions** - `691cffe` (feat)
+2. **Task 2 post-review: Top bar CSS, dataframe theme, club default, age integer format** - `795192f` (fix)
 
 ## Files Created/Modified
 - `/Users/ArthurAldea/ClaudeProjects/Moneyball/app.py` - Complete rewrite: navy CSS, 6 filters, shortlist table, scatter chart, pure-Python exports
@@ -137,20 +143,54 @@ Each task was committed atomically:
 - **Verification:** All 12 tests pass; 63 total tests green
 - **Committed in:** 691cffe (Task 1 commit)
 
+**5. [Rule 1 - Bug] Top bar remained black instead of navy (post-review)**
+- **Found during:** Task 2 visual verification (user review)
+- **Issue:** Streamlit's stHeader and stToolbar elements not covered by NAVY_CSS — defaulted to black
+- **Fix:** Added CSS for `[data-testid="stHeader"]` and `[data-testid="stToolbar"]` with `background-color: #0D1B2A !important`
+- **Files modified:** app.py
+- **Verification:** 63 tests pass; CSS present in NAVY_CSS string
+- **Committed in:** 795192f
+
+**6. [Rule 1 - Bug] Shortlist table rendered with residual cyberpunk styling (post-review)**
+- **Found during:** Task 2 visual verification (user review)
+- **Issue:** .stDataFrame and inner iframe/table not targeted by theme CSS
+- **Fix:** Added CSS rules for .stDataFrame, [data-testid="stDataFrameResizable"], iframe, and table selectors
+- **Files modified:** app.py
+- **Verification:** 63 tests pass
+- **Committed in:** 795192f
+
+**7. [Rule 1 - Bug] Club filter defaulted to all clubs pre-selected (post-review)**
+- **Found during:** Task 2 visual verification (user review)
+- **Issue:** `default=available_clubs` pre-selected every club; spec requires blank start (blank = all via guard)
+- **Fix:** Changed to `default=[]`; existing `if not sel_clubs: sel_clubs = available_clubs` guard already handled blank-means-all
+- **Files modified:** app.py
+- **Verification:** 63 tests pass
+- **Committed in:** 795192f
+
+**8. [Rule 1 - Bug] Age displayed as FBref years-days string instead of integer (post-review)**
+- **Found during:** Task 2 visual verification (user review)
+- **Issue:** prepare_display_df passed raw Age column (e.g. "28-150"); player profile panel also used raw value
+- **Fix:** Applied _parse_age in prepare_display_df with Int64 cast; applied _parse_age in profile panel for age_display
+- **Files modified:** app.py
+- **Verification:** 63 tests pass
+- **Committed in:** 795192f
+
 ---
 
-**Total deviations:** 4 auto-fixed (all Rule 3 - blocking stub gaps in conftest.py)
-**Impact on plan:** All fixes are in conftest.py (test infrastructure), not app.py logic. No scope creep. app.py implementation matches plan exactly.
+**Total deviations:** 8 auto-fixed (4 Rule 3 blocking conftest stub gaps in Task 1; 4 Rule 1 visual bugs discovered in post-review Task 2)
+**Impact on plan:** Task 1 fixes were test infrastructure; Task 2 fixes were cosmetic/correctness improvements from visual review. No scope creep.
 
 ## Issues Encountered
-- The conftest.py Streamlit stub was written for the old 4-tab app.py API surface and needed to be updated for the new Phase 5 API surface. All issues resolved iteratively within Task 1.
+- The conftest.py Streamlit stub was written for the old 4-tab app.py API surface and needed 4 new stubs (Task 1).
+- Visual review revealed 4 additional issues (top bar color, table theme, club default, age format) — all fixed in a single Task 2 commit.
 
 ## User Setup Required
 None - no external service configuration required.
 
 ## Next Phase Readiness
-- Task 2 (checkpoint:human-verify) awaiting visual approval. Run `streamlit run app.py` and verify 7 checks (theme, filters, table, row selection, scatter, disclaimer, empty state).
-- Phase 6 (Player Deep Profile) can replace the placeholder panel with a full deep profile (radar chart, stat table, similar players) using the existing row-click selection mechanism.
+- Dashboard is fully functional: navy theme, 6 filters, shortlist table, player profile panel, UV scatter, disclaimer, empty state.
+- Phase 6 (Player Deep Profile) can replace the placeholder panel with a full deep profile using the existing row-click selection mechanism.
+- FBref Cloudflare blocker (Phase 5.1) must be resolved before live data populates — test_data.csv in cache/ provides demo data.
 
 ---
 *Phase: 05-dashboard-rebuild-shortlist-filters*

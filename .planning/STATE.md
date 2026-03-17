@@ -4,10 +4,10 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 4
 status: executing
-stopped_at: Completed 05-02 Task 1 — app.py rewrite done; awaiting Task 2 visual verification checkpoint
-last_updated: "2026-03-17T06:13:41.390Z"
+stopped_at: Completed 05-02 — dashboard post-review fixes applied, plan complete
+last_updated: "2026-03-17T07:12:27.646Z"
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 5
   total_plans: 15
   completed_plans: 15
@@ -82,6 +82,9 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 - [Phase 05]: conftest.py st.stop() changed to no-op: old SystemExit subclass was caught by BaseException in test_app.py, blocking all 12 tests
 - [Phase 05]: _NoopCtx.__getitem__ added to support table_state['selection']['rows'] dict-style access in app.py row selection
 - [Phase 05]: apply_filters default args added so tests can call with a single named param (e.g., leagues=[]) without passing all 6 args
+- [Phase 05-02]: Club filter defaults to blank (empty list); blank = all via if-not guard — matches UX spec
+- [Phase 05-02]: prepare_display_df applies _parse_age and casts Age to Int64 for clean integer display in shortlist table
+- [Phase 05-02]: stHeader and stToolbar CSS targeted explicitly in NAVY_CSS to force navy top bar matching #0D1B2A background
 
 ## Progress
 Phase 1: [████████████████████] 3/3 plans (100%) — Complete
@@ -90,9 +93,14 @@ Phase 3: [████████████████████] 3/3 plan
 Phase 4: [████████████████████] 3/3 plans (100%) — Complete
 
 ## Session Continuity
-Last session: 2026-03-17T06:13:41.384Z
-Stopped at: Completed 05-02 Task 1 — app.py rewrite done; awaiting Task 2 visual verification checkpoint
+Last session: 2026-03-17T07:12:27.643Z
+Stopped at: Completed 05-02 — dashboard post-review fixes applied, plan complete
 Resume file: None
 
+## Accumulated Context
+
+### Roadmap Evolution
+- Phase 5.1 inserted after Phase 5: Fix FBref scraping — replace requests with Playwright to bypass Cloudflare JS challenge (URGENT)
+
 ## Blockers/Concerns
-- None. Phase 4 complete; 37 tests green. Ready for Phase 5 (Dashboard Rebuild).
+- FBref now returns Cloudflare JS challenge (403) for all automated HTTP requests — scraper produces no data. Phase 5.1 will fix using Playwright headless browser.

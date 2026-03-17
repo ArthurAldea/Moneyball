@@ -128,6 +128,16 @@ Plans:
 
 ---
 
+### Phase 05.1: Fix FBref scraping — replace requests with Playwright to bypass Cloudflare JS challenge (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 5
+**Plans:** 2/2 plans complete
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 05.1 to break down)
+
 ### Phase 6: Player Deep Profile
 
 **Goal:** Implement the drill-down player profile view triggered by clicking a shortlist row, displaying the full header block, radar chart vs. position-peer median, per-90 stat table with percentile bars, scatter chart highlight, and similar players panel.
