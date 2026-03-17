@@ -111,6 +111,14 @@ Plans:
 
 **Requirements:** FILTER-01, FILTER-02, FILTER-03, FILTER-04, FILTER-05, FILTER-06, DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06, DASH-07
 
+**Status:** Not Started — 2 plans ready
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Test scaffold: test_app.py with fixture factory + 12 failing unit tests
+- [ ] 05-02-PLAN.md — Complete app.py rewrite: navy theme, 6 filters, shortlist table, scatter plot, row selection
+
 **Success Criteria:**
 1. The landing page displays a ranked shortlist table with all required columns (Player, Club, League, Position, Age, Scout Score, UV Score, Age-Weighted UV Score, Market Value, Value Gap) sorted by Age-Weighted UV Score descending by default.
 2. Selecting "La Liga" in the league filter removes all non-La Liga players from the shortlist within one Streamlit re-run.
