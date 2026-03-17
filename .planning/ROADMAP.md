@@ -135,9 +135,11 @@ Plans:
 **Depends on:** Phase 5
 **Plans:** 2 plans
 
+**Status:** ✅ Complete (2/2 plans done)
+
 Plans:
-- [ ] 05.1-01-PLAN.md — Add _playwright_fetch + _do_playwright_get to scraper.py; update test_scraper.py
-- [ ] 05.1-02-PLAN.md — Remove test_data.csv shim from app.py load_data()
+- [x] 05.1-01-PLAN.md — Add _playwright_fetch + _do_playwright_get to scraper.py; update test_scraper.py
+- [x] 05.1-02-PLAN.md — Remove test_data.csv shim from app.py load_data()
 
 ### Phase 6: Player Deep Profile
 

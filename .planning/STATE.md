@@ -4,20 +4,20 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 05.1
 status: planning
-stopped_at: Completed 05.1-01 — Playwright FBref scraper, all 63 tests passing
-last_updated: "2026-03-17T07:54:43.555Z"
+stopped_at: Completed 05.1-02 — Removed test_data.csv shim from load_data()
+last_updated: "2026-03-17T19:25:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 17
-  completed_plans: 16
+  completed_plans: 17
 ---
 
 # Project State
 
 **Current Phase:** 05.1
-**Status:** Ready to plan
-**Last Updated:** 2026-03-17 (Plan 04-03 executed)
+**Status:** Phase 05.1 complete — all 2 plans done
+**Last Updated:** 2026-03-17 (Plan 05.1-02 executed)
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-03-16)
@@ -32,13 +32,14 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 | 2 | Merger & Scorer Rewrite (EPL End-to-End) | ✅ Complete (4/4 plans done) |
 | 3 | Multi-League Expansion | ✅ Complete (3/3 plans done) |
 | 4 | Advanced Scoring | ✅ Complete (3/3 plans done) |
+| 5.1 | Fix FBref Scraping — Playwright Cloudflare bypass | ✅ Complete (2/2 plans done) |
 | 5 | Dashboard Rebuild — Shortlist & Filters | 🔲 Not Started |
 | 6 | Player Deep Profile | 🔲 Not Started |
 
 ## Current Position
 
-**Plan:** 04-03 complete. Phase 4 done.
-**Next:** Phase 5 — Dashboard Rebuild
+**Plan:** 05.1-02 complete. Phase 05.1 done.
+**Next:** Phase 5 — Dashboard Rebuild (originally planned; Phase 05.1 was an urgent fix inserted before it)
 
 ## Accumulated Decisions
 
@@ -86,16 +87,18 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 - [Phase 05-02]: prepare_display_df applies _parse_age and casts Age to Int64 for clean integer display in shortlist table
 - [Phase 05-02]: stHeader and stToolbar CSS targeted explicitly in NAVY_CSS to force navy top bar matching #0D1B2A background
 - [Phase 05.1]: _do_playwright_get extracted as thin wrapper for test isolation; FBREF_HEADERS removed from imports after Playwright migration
+- [Phase 05.1-02]: test_data.csv shim removed from load_data(); load_data() now unconditionally calls run_fbref_scrapers + run_tm_scrapers + run_scoring_pipeline; cache/test_data.csv deleted
 
 ## Progress
 Phase 1: [████████████████████] 3/3 plans (100%) — Complete
 Phase 2: [████████████████████] 4/4 plans (100%) — Complete
 Phase 3: [████████████████████] 3/3 plans (100%) — Complete
 Phase 4: [████████████████████] 3/3 plans (100%) — Complete
+Phase 5.1: [████████████████████] 2/2 plans (100%) — Complete
 
 ## Session Continuity
-Last session: 2026-03-17T07:54:43.552Z
-Stopped at: Completed 05.1-01 — Playwright FBref scraper, all 63 tests passing
+Last session: 2026-03-17T19:25:00.000Z
+Stopped at: Completed 05.1-02 — Removed test_data.csv shim from load_data()
 Resume file: None
 
 ## Accumulated Context
