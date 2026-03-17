@@ -1,0 +1,15 @@
+understat
+aiohttp
+requests
+curl_cffi
+beautifulsoup4
+lxml
+pandas
+numpy
+scikit-learn
+rapidfuzz
+python-dotenv
+streamlit
+plotly
+statsmodels
+playwright

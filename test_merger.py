@@ -111,8 +111,8 @@ def test_standings_scraper_caches(tmp_path, monkeypatch):
     --></body></html>
     """
 
-    # Mock _fetch_with_backoff to return our HTML
-    monkeypatch.setattr(scraper_mod, "_fetch_with_backoff", lambda url, headers: standings_html)
+    # Mock _playwright_fetch to return our HTML string directly
+    monkeypatch.setattr(scraper_mod, "_playwright_fetch", lambda url: standings_html)
     # Redirect cache to tmp_path
     monkeypatch.setattr(scraper_mod, "CACHE_DIR", str(tmp_path))
 

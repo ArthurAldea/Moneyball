@@ -11,6 +11,7 @@ import re
 import time
 import asyncio
 import requests
+from playwright.sync_api import sync_playwright
 import pandas as pd
 from curl_cffi import requests as cf_requests
 from bs4 import BeautifulSoup, Comment
@@ -22,7 +23,7 @@ from config import (
     SEASONS, API_FOOTBALL_BASE, API_FOOTBALL_LEAGUE, API_FOOTBALL_RATE_S,
     TM_BASE, TM_HEADERS, TM_RATE_LIMIT_S, TM_LEAGUE_URLS,
     FBREF_LEAGUES, FBREF_TABLES, FBREF_SEASONS, FBREF_RATE_MIN, FBREF_RATE_MAX,
-    FBREF_BACKOFF_SEQUENCE, FBREF_TABLE_URL_SEGMENTS, FBREF_MIN_MINUTES, FBREF_HEADERS,
+    FBREF_BACKOFF_SEQUENCE, FBREF_TABLE_URL_SEGMENTS, FBREF_MIN_MINUTES,
     build_fbref_url,
 )
 
@@ -67,41 +68,76 @@ def _fbref_cache_path(league: str, table: str, season: str) -> str:
 
 # ── FBref HTTP helpers ────────────────────────────────────────────────────────
 
-def _fetch_with_backoff(url: str, headers: dict) -> requests.Response:
+def _do_playwright_get(url: str) -> str:
     """
-    Fetch a URL with exponential backoff on HTTP 429.
+    Launch headless Chromium, navigate to url, wait for a table element, return full page HTML.
 
-    Backoff sequence (DATA-06): 30s → 60s → 120s.
-    After the third 429, raises RuntimeError rather than hanging indefinitely.
+    This is the thin inner wrapper called by _playwright_fetch. Isolated here so tests can
+    monkeypatch it without needing to stub the full sync_playwright context manager.
 
     Args:
-        url:     Full URL to fetch.
-        headers: HTTP request headers dict (must include User-Agent).
+        url: Full URL to fetch.
 
     Returns:
-        requests.Response with status 200.
+        Full page HTML string after JS execution.
+    """
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            viewport={"width": 1920, "height": 1080},
+            user_agent=(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+        )
+        page = context.new_page()
+        page.goto(url, wait_until="domcontentloaded", timeout=60000)
+        try:
+            page.wait_for_selector("table", timeout=30000)
+        except Exception:
+            pass  # proceed; let _extract_fbref_table raise ValueError on missing table
+        html = page.content()
+        browser.close()
+    return html
+
+
+def _playwright_fetch(url: str) -> str:
+    """
+    Fetch a URL using Playwright headless Chromium, bypassing Cloudflare JS challenge.
+
+    Replaces _fetch_with_backoff. Returns full page HTML as string.
+    Preserves backoff semantics: retries up to len(FBREF_BACKOFF_SEQUENCE) times when a
+    Cloudflare challenge page is detected in the returned HTML.
+
+    Args:
+        url: Full URL to fetch.
+
+    Returns:
+        Full page HTML string after JS execution.
 
     Raises:
-        RuntimeError: If 429 persists after all backoff attempts.
-        requests.HTTPError: For non-200, non-429 responses.
+        RuntimeError: If Cloudflare challenge persists after all retries.
     """
     from config import FBREF_BACKOFF_SEQUENCE
     delays = FBREF_BACKOFF_SEQUENCE  # [30, 60, 120]
 
     for attempt, delay in enumerate(delays + [None]):
-        resp = requests.get(url, headers=headers, timeout=30)
-        if resp.status_code == 429:
-            if delay is None:
-                raise RuntimeError(
-                    f"FBref returned 429 after {len(delays)} retries — "
-                    f"aborting fetch of: {url}"
-                )
-            print(f"  [warn] 429 Too Many Requests — backing off {delay}s "
-                  f"(attempt {attempt + 1}/{len(delays)}): {url}")
-            time.sleep(delay)
-            continue
-        resp.raise_for_status()
-        return resp
+        html = _do_playwright_get(url)
+
+        if "Just a moment" not in html and "cf-browser-verification" not in html:
+            return html
+
+        if delay is None:
+            raise RuntimeError(
+                f"Cloudflare challenge not resolved after {len(delays)} retries — "
+                f"aborting fetch of: {url}"
+            )
+        print(
+            f"  [warn] Cloudflare challenge — backing off {delay}s "
+            f"(attempt {attempt + 1}/{len(delays)}): {url}"
+        )
+        time.sleep(delay)
 
     raise RuntimeError("Unreachable")
 
@@ -208,7 +244,7 @@ def scrape_fbref_stat(
     import random
     from config import (
         FBREF_LEAGUES, FBREF_TABLE_URL_SEGMENTS, FBREF_MIN_MINUTES,
-        FBREF_RATE_MIN, FBREF_RATE_MAX, FBREF_HEADERS, build_fbref_url,
+        FBREF_RATE_MIN, FBREF_RATE_MAX, build_fbref_url,
     )
 
     # Normalise table_type: accept both "standard" and "stats_standard"
@@ -234,13 +270,13 @@ def scrape_fbref_stat(
     time.sleep(delay)
 
     try:
-        resp = _fetch_with_backoff(url, FBREF_HEADERS)
+        html = _playwright_fetch(url)
     except Exception as e:
         print(f"  [warn] FBref fetch failed for {table_type} {season_label}: {e}")
         return pd.DataFrame()
 
     try:
-        df = _extract_fbref_table(resp.text, table_id)
+        df = _extract_fbref_table(html, table_id)
     except ValueError as e:
         print(f"  [warn] Table extraction failed: {e}")
         return pd.DataFrame()
@@ -296,7 +332,7 @@ def scrape_fbref_standings(league: str = "EPL", season: str = "2024-25") -> pd.D
     season_long = f"{start}-{start + 1}"
     url = f"https://fbref.com/en/comps/{comp_id}/{season_long}/{season_long}-{slug}-Stats"
 
-    html = _fetch_with_backoff(url, FBREF_HEADERS)
+    html = _playwright_fetch(url)
 
     # Try the known table ID first; fall back to scanning all comment nodes
     table_id = f"results{season_long}{comp_id}1_home"
