@@ -25,7 +25,7 @@
 - [x] **SCORE-05**: System applies a league quality multiplier to stats before cross-league comparison, based on UEFA club coefficient rankings (EPL highest weight, Ligue 1 lowest among top 5)
 - [ ] **SCORE-06**: UV Score regression (`log10(market_value) ~ scout_score + position_dummies`) is fitted on the full unfiltered player pool — never on a filtered view
 - [ ] **SCORE-07**: Age-weighted UV Score is computed: `uv_score_age_weighted = uv_score × (1 + 0.30 × age_weight)` where `age_weight` uses log-decay from age 17 to 29, capped at 1.5× for players under 21. Both `uv_score` and `uv_score_age_weighted` are stored as separate columns.
-- [ ] **SCORE-08**: System identifies top 5 similar players per player using cosine similarity on the 5 normalized pillar score columns, within the same position group, across all 5 leagues
+- [x] **SCORE-08**: System identifies top 5 similar players per player using cosine similarity on the 5 normalized pillar score columns, within the same position group, across all 5 leagues
 
 ### Dashboard — Filters
 

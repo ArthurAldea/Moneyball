@@ -7,7 +7,7 @@
 | 1 | FBref Scraper (EPL) | Replace Understat + API-Football with a complete FBref scraper covering all required stat tables for EPL only | DATA-01 (EPL), DATA-02, DATA-05, DATA-06, DATA-07 | ✅ Complete |
 | 2 | Merger & Scorer Rewrite (EPL End-to-End) | Rebuild merger and scorer to ingest FBref columns, confirm all pillar models produce sensible scores for EPL, and add age-weighted UV | DATA-03, SCORE-01, SCORE-02, SCORE-03, SCORE-06, SCORE-07 | ✅ Complete |
 | 3 | Multi-League Expansion | Complete    | 2026-03-17 | ✅ Complete |
-| 4 | 2/3 | In Progress|  | Not Started |
+| 4 | Advanced Scoring | Apply team strength, league quality multiplier, and cosine similarity similar players | SCORE-04, SCORE-05, SCORE-08 | ✅ Complete |
 | 5 | Dashboard Rebuild — Shortlist & Filters | Replace current tab layout with shortlist-first landing page, all six filters, professional dark theme, and UV scatter plot | FILTER-01, FILTER-02, FILTER-03, FILTER-04, FILTER-05, FILTER-06, DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06, DASH-07 | Not Started |
 | 6 | Player Deep Profile | Add drill-down player profile with radar chart, full per-90 stat table with percentile bars, scatter highlight, and similar players panel | PROFILE-01, PROFILE-02, PROFILE-03, PROFILE-04, PROFILE-05 | Not Started |
 
@@ -90,12 +90,12 @@
 
 **Requirements:** SCORE-04, SCORE-05, SCORE-08
 
-**Plans:** 2/3 plans executed
+**Status:** ✅ Complete (3/3 plans done)
 
 Plans:
-- [ ] 04-01-PLAN.md — Config + Merger fixes + team strength adjustment (SCORE-04)
-- [ ] 04-02-PLAN.md — League quality multiplier (SCORE-05)
-- [ ] 04-03-PLAN.md — Similar players via cosine similarity (SCORE-08)
+- [x] 04-01-PLAN.md — Config + Merger fixes + team strength adjustment (SCORE-04)
+- [x] 04-02-PLAN.md — League quality multiplier (SCORE-05)
+- [x] 04-03-PLAN.md — Similar players via cosine similarity (SCORE-08)
 
 **Success Criteria:**
 1. A defender from a bottom-half club receives a higher adjusted defensive pillar score than the identical raw stats would yield for a defender at a top-half club — difference traceable to the team strength multiplier column.

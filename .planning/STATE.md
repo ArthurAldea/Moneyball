@@ -3,26 +3,26 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 4
-status: planning
-stopped_at: Completed 04-02-PLAN.md (SCORE-05 league quality multiplier; 33 tests green)
-last_updated: "2026-03-17T03:17:41.840Z"
+status: in-progress
+stopped_at: Completed 04-03-PLAN.md (SCORE-08 similar players; 37 tests green)
+last_updated: "2026-03-17T03:26:54.000Z"
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
 
 **Current Phase:** 4
-**Status:** Ready to plan
-**Last Updated:** 2026-03-17 (Plan 03-03 executed)
+**Status:** In Progress (Phase 4 complete — 3/3 plans done)
+**Last Updated:** 2026-03-17 (Plan 04-03 executed)
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-03-16)
 **Core value:** Surface players whose performance most exceeds their market price — in the right positional and team context.
-**Current focus:** Phase 4 Advanced Scoring — Phase 3 complete, full 5-league pipeline ready
+**Current focus:** Phase 4 Advanced Scoring — all 3 plans complete; SCORE-04, SCORE-05, SCORE-08 implemented
 
 ## Phase Progress
 
@@ -31,17 +31,20 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 | 1 | FBref Scraper (EPL) | ✅ Complete (Plans 01-01, 01-02, 01-03 done) |
 | 2 | Merger & Scorer Rewrite (EPL End-to-End) | ✅ Complete (4/4 plans done) |
 | 3 | Multi-League Expansion | ✅ Complete (3/3 plans done) |
-| 4 | Advanced Scoring | 🔲 Not Started |
+| 4 | Advanced Scoring | ✅ Complete (3/3 plans done) |
 | 5 | Dashboard Rebuild — Shortlist & Filters | 🔲 Not Started |
 | 6 | Player Deep Profile | 🔲 Not Started |
 
 ## Current Position
 
-**Plan:** 03-03 complete. Phase 3 done.
-**Next:** Phase 4 — Advanced Scoring
+**Plan:** 04-03 complete. Phase 4 done.
+**Next:** Phase 5 — Dashboard Rebuild
 
 ## Accumulated Decisions
 
+- **[04-03] compute_similar_players scoped per position group across all leagues:** Style matching is global (not per-league) — only position group is the boundary. GK/FW/MF/DF iterated independently with NxN cosine similarity matrix per group.
+- **[04-03] similar_players wired as final pipeline step:** Called after apply_league_quality_multiplier so uv_score_age_weighted is fully adjusted when serialized into JSON entries.
+- **[04-03] top_k = min(5, n_candidates) for small groups:** Players in groups with fewer than 2 members get similar_players="[]" — graceful fallback for edge cases.
 - **[03-03] compute_scout_scores outer per-league loop:** MinMaxScaler fitted per league+position group independently — top forward in La Liga scores ~100 regardless of EPL forward distribution. Backward-compat fallback when League column absent.
 - **[03-03] UV regression (compute_efficiency) unchanged:** Still operates on full pooled multi-league DataFrame (SCORE-06) — cross-league undervaluation comparison preserved.
 - **[03-02] Pass 3 requires club cross-check:** At WRatio 70-79 name similarity there are too many false positives for multi-language player names; requiring club match prevents incorrect value attachments. normalize_club strips FC/CF/AFC affixes with word-boundary regex.
@@ -79,11 +82,12 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 Phase 1: [████████████████████] 3/3 plans (100%) — Complete
 Phase 2: [████████████████████] 4/4 plans (100%) — Complete
 Phase 3: [████████████████████] 3/3 plans (100%) — Complete
+Phase 4: [████████████████████] 3/3 plans (100%) — Complete
 
 ## Session Continuity
-Last session: 2026-03-17T03:17:41.836Z
-Stopped at: Completed 04-02-PLAN.md (SCORE-05 league quality multiplier; 33 tests green)
+Last session: 2026-03-17T03:26:54.000Z
+Stopped at: Completed 04-03-PLAN.md (SCORE-08 similar players; 37 tests green)
 Resume file: None
 
 ## Blockers/Concerns
-- None. Phase 3 complete; 40 tests green. Ready for Phase 4 (Advanced Scoring).
+- None. Phase 4 complete; 37 tests green. Ready for Phase 5 (Dashboard Rebuild).
