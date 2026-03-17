@@ -138,7 +138,7 @@ def merge_fbref_tables(season_data: dict) -> pd.DataFrame:
 
     # ── stats_defense ─────────────────────────────────────────────────────────
     _join_table("stats_defense",
-                drop_cols=["Tkl.1", "Rk", "Nation", "Comp", "Matches"] +
+                drop_cols=["Tkl.1", "Succ", "Rk", "Nation", "Comp", "Matches"] +
                           [c for c in season_data.get("stats_defense", pd.DataFrame()).columns
                            if c.endswith(".1") or c.endswith(".2")])
 

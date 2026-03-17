@@ -485,13 +485,72 @@ def test_single_season_flag():
     )
 
 
-@pytest.mark.xfail(reason="SCORE-04: Pres not yet in SUM_STATS/PER90_STATS", strict=True)
 def test_pres_p90_present_after_per90s():
     """After _aggregate_fbref_seasons + compute_per90s, Pres_p90 column must exist."""
-    assert False, "stub — implement in plan 04-01 task 2"
+    from merger import _aggregate_fbref_seasons, compute_per90s
+
+    # Minimal season_data with a Pres column in stats_standard
+    standard = pd.DataFrame({
+        "Player": ["Alice"],
+        "Squad":  ["Arsenal"],
+        "Pos":    ["DF"],
+        "Age":    ["25-100"],
+        "Min":    [1800],
+        "Pres":   [30],
+    })
+    league_data = {"2024-25": {"stats_standard": standard}}
+    result = _aggregate_fbref_seasons(league_data)
+    result = compute_per90s(result)
+    assert "Pres_p90" in result.columns, "Pres_p90 column missing after per90 derivation"
+    assert result["Pres_p90"].notna().any(), "Pres_p90 is all NaN"
 
 
-@pytest.mark.xfail(reason="SCORE-04: stats_defense Succ collision not yet fixed", strict=True)
 def test_drbsucc_uses_possession_succ():
     """DrbSucc% must be derived from possession Succ, not defense Succ."""
-    assert False, "stub — implement in plan 04-01 task 2"
+    from merger import merge_fbref_tables
+
+    players = ["Alice"]
+    standard = pd.DataFrame({
+        "Player": players,
+        "Squad":  ["Arsenal"],
+        "Pos":    ["DF"],
+        "Age":    ["25-100"],
+        "Min":    [1800],
+    })
+    # stats_defense has Succ=50 (pressure successes — should be dropped)
+    defense = pd.DataFrame({
+        "Player": players,
+        "Squad":  ["Arsenal"],
+        "Pos":    ["DF"],
+        "Age":    ["25-100"],
+        "Tkl":    [40],
+        "Int":    [20],
+        "Blocks": [10],
+        "Succ":   [50],   # pressure successes — must be dropped before join
+    })
+    # stats_possession has Succ=10 (dribble successes) and Att_drb=20
+    possession = pd.DataFrame({
+        "Player":  players,
+        "Squad":   ["Arsenal"],
+        "Pos":     ["DF"],
+        "Age":     ["25-100"],
+        "Succ":    [10],    # dribble successes
+        "Att":     [20],    # dribble attempts (renamed Att_drb at merge)
+        "PrgC":    [5],
+    })
+    season_data = {
+        "stats_standard": standard,
+        "stats_defense":  defense,
+        "stats_possession": possession,
+    }
+    result = merge_fbref_tables(season_data)
+    # DrbSucc% = possession Succ / Att_drb * 100 = 10/20*100 = 50.0
+    # If collision: defense Succ (50) would shadow possession Succ → 50/20*100 = 250.0
+    from merger import _aggregate_fbref_seasons
+    league_data = {"2024-25": season_data}
+    agg = _aggregate_fbref_seasons(league_data)
+    drbsucc = agg["DrbSucc%"].iloc[0]
+    assert abs(drbsucc - 50.0) < 1e-6, (
+        f"DrbSucc% should be 50.0 (possession Succ=10, Att_drb=20), got {drbsucc:.2f}. "
+        f"If 250.0: defense Succ is shadowing possession Succ (collision not fixed)."
+    )

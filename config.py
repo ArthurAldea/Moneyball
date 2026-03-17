@@ -209,7 +209,18 @@ PILLARS_DF = {
         "stats": {"PrgC_p90": 0.55, "DrbSucc%": 0.45},
     },
     "creation": {**_CREATION, "weight": 10},
-    "defense":   {**_DEFENSE,   "weight": 45},
+    "defense": {
+        "weight": 45,
+        "label": "Defense",
+        "color": "#f5a623",
+        "stats": {
+            "Tkl_p90": 0.30,
+            "Int_p90": 0.25,
+            "Blocks_p90": 0.20,
+            "DuelsWon_p90": 0.15,
+            "Pres_p90": 0.10,
+        },
+    },
     "retention": {**_RETENTION, "weight": 20},
 }
 
@@ -267,6 +278,7 @@ SUM_STATS = [
     "Saves", "GA",             # GK stats_keeper
     "PSxG",                    # GK keeper_adv (for PSxG/SoT re-derivation)
     "SoTA",                    # GK shots on target against (stats_keeper)
+    "Pres",                    # pressures raw count from stats_defense — Phase 4 (SCORE-04)
 ]
 MEAN_STATS = []  # all rate stats re-derived from sums, not averaged
 PER90_STATS = [
@@ -276,4 +288,5 @@ PER90_STATS = [
     "Won",    # aerial duels won → DuelsWon_p90
     "SCA",    # shot-creating actions → SCA_p90
     "Saves",  # GK saves per 90
+    "Pres",   # → Pres_p90 — Phase 4 (SCORE-04)
 ]
