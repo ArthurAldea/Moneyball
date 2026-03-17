@@ -296,3 +296,30 @@ def test_cache_hit_is_fast(tmp_path, monkeypatch):
     for season in FBREF_SEASONS:
         for table in FBREF_TABLES:
             assert table in results["EPL"][season], f"Missing {table} for {season}"
+
+
+# ── Phase 3: Multi-league scraper tests ──────────────────────────────────────
+
+def test_url_construction_new_leagues():
+    """build_fbref_url generates correct URLs for all 4 new leagues (comp IDs and slugs)."""
+    pytest.skip("stub — implemented in Plan 03-01 Task 3")
+
+
+def test_cache_naming_new_leagues():
+    """_fbref_cache_path for new leagues produces correct convention: fbref_{LEAGUE}_{table}_{season}.csv"""
+    pytest.skip("stub — implemented in Plan 03-01 Task 3")
+
+
+def test_run_fbref_scrapers_all_leagues():
+    """run_fbref_scrapers() with no args returns all 5 league keys; scrape_fbref_stat called 90 times."""
+    pytest.skip("stub — implemented in Plan 03-01 Task 3")
+
+
+def test_run_tm_scrapers_multi_league():
+    """run_tm_scrapers() with no args calls scrape_tm_season for all 5 leagues × 2 seasons."""
+    pytest.skip("stub — implemented in Plan 03-01 Task 3")
+
+
+def test_tm_cache_naming_league_keyed():
+    """scrape_tm_season with league param writes cache to tm_values_{LEAGUE}_{season}.csv."""
+    pytest.skip("stub — implemented in Plan 03-01 Task 3")
