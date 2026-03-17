@@ -90,6 +90,13 @@
 
 **Requirements:** SCORE-04, SCORE-05, SCORE-08
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Config + Merger fixes + team strength adjustment (SCORE-04)
+- [ ] 04-02-PLAN.md — League quality multiplier (SCORE-05)
+- [ ] 04-03-PLAN.md — Similar players via cosine similarity (SCORE-08)
+
 **Success Criteria:**
 1. A defender from a bottom-half club receives a higher adjusted defensive pillar score than the identical raw stats would yield for a defender at a top-half club — difference traceable to the team strength multiplier column.
 2. The five similar players returned for any given player are all from the same position group, drawn from across multiple leagues where applicable, and ranked by cosine similarity on the five `score_*` pillar columns.
