@@ -438,3 +438,17 @@ def test_team_strength_skips_nan_league_position():
     assert abs(result.iloc[0]["Tkl_p90"] - 1.0) < 1e-9, (
         f"Tkl_p90 should be unchanged for NaN league_position, got {result.iloc[0]['Tkl_p90']}"
     )
+
+
+# ── Phase 4 Plan 02: League Quality Multiplier tests (SCORE-05) ──────────────
+
+@pytest.mark.xfail(reason="SCORE-05: apply_league_quality_multiplier not yet implemented", strict=True)
+def test_league_quality_multiplier_values():
+    """Each player row must have league_quality_multiplier consistent with locked coefficients."""
+    assert False, "stub — implement in plan 04-02 task 2"
+
+
+@pytest.mark.xfail(reason="SCORE-05: apply_league_quality_multiplier not yet implemented", strict=True)
+def test_league_quality_multiplier_applied_in_place():
+    """uv_score_age_weighted must be multiplied in-place by the league quality multiplier."""
+    assert False, "stub — implement in plan 04-02 task 2"
