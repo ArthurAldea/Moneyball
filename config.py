@@ -14,7 +14,11 @@ MIN_MINUTES_PER_SEASON = 900  # scales down when fewer seasons are selected
 
 # ── FBref scraper constants ────────────────────────────────────────────────────
 FBREF_LEAGUES = {
-    "EPL": {"comp_id": 9, "slug": "Premier-League"},
+    "EPL":        {"comp_id": 9,  "slug": "Premier-League"},
+    "LaLiga":     {"comp_id": 12, "slug": "La-Liga"},
+    "Bundesliga": {"comp_id": 20, "slug": "Bundesliga"},
+    "SerieA":     {"comp_id": 11, "slug": "Serie-A"},
+    "Ligue1":     {"comp_id": 13, "slug": "Ligue-1"},
 }
 
 FBREF_TABLES = [
@@ -108,6 +112,13 @@ TM_BASE = (
     "https://www.transfermarkt.com/premier-league/marktwerte/"
     "wettbewerb/GB1/plus/1/galerie/0"
 )
+TM_LEAGUE_URLS = {
+    "EPL":        "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1",
+    "LaLiga":     "https://www.transfermarkt.com/laliga/startseite/wettbewerb/ES1",
+    "Bundesliga": "https://www.transfermarkt.com/bundesliga/startseite/wettbewerb/L1",
+    "SerieA":     "https://www.transfermarkt.com/serie-a/startseite/wettbewerb/IT1",
+    "Ligue1":     "https://www.transfermarkt.com/ligue-1/startseite/wettbewerb/FR1",
+}
 TM_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -121,6 +132,7 @@ TM_HEADERS = {
 TM_RATE_LIMIT_S = 5
 
 FUZZY_THRESHOLD = 80
+FUZZY_THRESHOLD_PASS3 = 70
 
 # ── Outfield Scout Score Pillars (position-specific) ──────────────────────────
 # Weights reflect each position's primary responsibilities.
