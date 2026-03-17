@@ -488,3 +488,29 @@ def test_league_quality_multiplier_applied_in_place():
     assert abs(ligue1_row["uv_score_age_weighted"] - 50.0) < 1e-9, (
         f"Ligue1 uv_score_age_weighted: expected 50.0 (50.0 * 1.00), got {ligue1_row['uv_score_age_weighted']}"
     )
+
+
+# ── Phase 4 Plan 03: Similar Players tests (SCORE-08) ────────────────────────
+
+@pytest.mark.xfail(reason="SCORE-08: compute_similar_players not yet implemented", strict=True)
+def test_similar_players_column_is_valid_json():
+    """similar_players column must exist and contain valid JSON on every row."""
+    assert False, "stub — implement in plan 04-03 task 2"
+
+
+@pytest.mark.xfail(reason="SCORE-08: compute_similar_players not yet implemented", strict=True)
+def test_similar_players_same_position_group():
+    """All 5 similar players for any given player must be the same position group."""
+    assert False, "stub — implement in plan 04-03 task 2"
+
+
+@pytest.mark.xfail(reason="SCORE-08: compute_similar_players not yet implemented", strict=True)
+def test_similar_players_excludes_self():
+    """No player may appear in their own similar_players list."""
+    assert False, "stub — implement in plan 04-03 task 2"
+
+
+@pytest.mark.xfail(reason="SCORE-08: compute_similar_players not yet implemented", strict=True)
+def test_similar_players_cross_league():
+    """Similar players may span multiple leagues (not restricted to same league)."""
+    assert False, "stub — implement in plan 04-03 task 2"
