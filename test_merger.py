@@ -483,3 +483,15 @@ def test_single_season_flag():
     assert bob["single_season"] == True, (
         f"Bob appears in 1 season only — expected single_season=True, got {bob['single_season']}"
     )
+
+
+@pytest.mark.xfail(reason="SCORE-04: Pres not yet in SUM_STATS/PER90_STATS", strict=True)
+def test_pres_p90_present_after_per90s():
+    """After _aggregate_fbref_seasons + compute_per90s, Pres_p90 column must exist."""
+    assert False, "stub — implement in plan 04-01 task 2"
+
+
+@pytest.mark.xfail(reason="SCORE-04: stats_defense Succ collision not yet fixed", strict=True)
+def test_drbsucc_uses_possession_succ():
+    """DrbSucc% must be derived from possession Succ, not defense Succ."""
+    assert False, "stub — implement in plan 04-01 task 2"

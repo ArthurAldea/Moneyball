@@ -367,3 +367,21 @@ def test_league_column_preserved_through_pipeline():
     assert "uv_score" in result.columns, "uv_score missing from pipeline output"
     assert "uv_score_age_weighted" in result.columns, "uv_score_age_weighted missing from pipeline output"
     assert "scout_score" in result.columns, "scout_score missing from pipeline output"
+
+
+@pytest.mark.xfail(reason="SCORE-04: apply_team_strength_adjustment not yet implemented", strict=True)
+def test_team_strength_bottom_half_inflates_df_score():
+    """Bottom-half DF gets higher adjusted defensive stats than identical stats at top-half club."""
+    assert False, "stub — implement in plan 04-01 task 3"
+
+
+@pytest.mark.xfail(reason="SCORE-04: apply_team_strength_adjustment not yet implemented", strict=True)
+def test_team_strength_does_not_affect_fw_attacking():
+    """FW xG_p90, Gls_p90, Ast_p90, SoT_p90 must be unchanged by team strength step."""
+    assert False, "stub — implement in plan 04-01 task 3"
+
+
+@pytest.mark.xfail(reason="SCORE-04: apply_team_strength_adjustment not yet implemented", strict=True)
+def test_team_strength_skips_nan_league_position():
+    """Player with NaN league_position passes through with no stat change."""
+    assert False, "stub — implement in plan 04-01 task 3"
