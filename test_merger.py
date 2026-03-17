@@ -325,3 +325,25 @@ def test_prgc_source_is_possession():
     # Value should come from possession (30, 20), not standard (999)
     alice = result[result["Player"] == "Alice"].iloc[0]
     assert alice["PrgC"] == 30, f"Expected PrgC=30 from possession, got {alice['PrgC']}"
+
+
+# ── Phase 3: Multi-league merger tests ───────────────────────────────────────
+
+def test_league_column_present_multi_league():
+    """build_dataset with 2-league fbref_data returns DataFrame with non-null League on every row."""
+    pytest.skip("stub — implemented in Plan 03-02 Task 3")
+
+
+def test_per_league_min_minutes_filter():
+    """Min-minutes threshold applied per-league: player just above threshold in A included, just below in B excluded."""
+    pytest.skip("stub — implemented in Plan 03-02 Task 3")
+
+
+def test_pass3_tm_matching():
+    """Pass 3: WRatio 70-79 + matching club name → match accepted; WRatio 70-79 + different club → rejected."""
+    pytest.skip("stub — implemented in Plan 03-02 Task 3")
+
+
+def test_single_season_flag():
+    """_aggregate_fbref_seasons: player in 1 season gets single_season=True; player in 2 seasons gets False."""
+    pytest.skip("stub — implemented in Plan 03-02 Task 3")
