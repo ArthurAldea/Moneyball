@@ -29,6 +29,12 @@ class _NoopCtx:
             return _NoopCtx()
         return _noop
 
+    def __getitem__(self, key):
+        # Support dict-style access: state["selection"]["rows"] → empty list for "rows"
+        if key == "rows":
+            return []
+        return _NoopCtx()
+
     def __iter__(self):
         # Support: col1, col2 = st.columns(2)
         return iter([])
@@ -48,14 +54,9 @@ def _make_streamlit_stub():
     st.set_page_config = _noop
     st.markdown = _noop
     st.spinner = lambda *a, **kw: _NoopCtx()
-    class _StopExecution(SystemExit):
-        """Raised by st.stop() to halt module-level Streamlit execution in test context."""
-        pass
-
-    def _stop_stub():
-        raise _StopExecution(0)
-
-    st.stop = _stop_stub
+    # st.stop() is a no-op in tests — the empty-state branch calls it but we
+    # want module-level execution to complete so pure functions can be exported.
+    st.stop = _noop
     st.error = _noop
     st.warning = _noop
     st.info = _noop
@@ -83,6 +84,33 @@ def _make_streamlit_stub():
     st.dataframe = _noop
     st.plotly_chart = _noop
     st.write = _noop
+    st.caption = _noop
+    st.divider = _noop
+    st.container = lambda: _NoopCtx()
+    st.expander = lambda *a, **kw: _NoopCtx()
+    st.header = _noop
+    st.subheader = _noop
+    st.title = _noop
+    st.text = _noop
+    st.code = _noop
+    st.json = _noop
+    st.image = _noop
+    st.empty = lambda: _NoopCtx()
+    st.form = lambda *a, **kw: _NoopCtx()
+    st.form_submit_button = lambda *a, **kw: False
+    st.checkbox = lambda *a, **kw: False
+    st.radio = lambda *a, **kw: None
+    st.selectbox = lambda *a, **kw: None
+    st.text_input = lambda *a, **kw: ""
+    st.text_area = lambda *a, **kw: ""
+    st.number_input = lambda *a, **kw: kw.get("value", 0)
+    st.date_input = lambda *a, **kw: None
+    st.file_uploader = lambda *a, **kw: None
+    st.color_picker = lambda *a, **kw: "#000000"
+    st.progress = _noop
+    st.balloons = _noop
+    st.snow = _noop
+    st.toast = _noop
 
     # st.cache_data: wrap decorated functions to return a schema-correct empty DataFrame.
     # This prevents load_data() from calling run_fbref_scrapers() (network call).
@@ -113,6 +141,27 @@ def _make_streamlit_stub():
             pass
 
     st.cache_data = _CacheData()
+
+    # column_config stub — required by app.py module-level COLUMN_CONFIG constant
+    class _ColumnConfigModule:
+        class TextColumn:
+            def __init__(self, label, **kwargs):
+                self.label = label
+
+        class NumberColumn:
+            def __init__(self, label, format=None, **kwargs):
+                self.label = label
+                self.format = format
+
+        class LinkColumn:
+            def __init__(self, label, **kwargs):
+                self.label = label
+
+        class ImageColumn:
+            def __init__(self, label, **kwargs):
+                self.label = label
+
+    st.column_config = _ColumnConfigModule()
 
     # session_state stub
     st.session_state = {}

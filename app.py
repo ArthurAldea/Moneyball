@@ -1,278 +1,187 @@
 """
-app.py — Moneyball Intelligence System
-Cybersecurity-themed Streamlit dashboard for EPL player undervaluation analysis.
+app.py — Moneyball Scouting Intelligence
+Professional navy dashboard — shortlist-first single-page layout.
 """
-
 import streamlit as st
 import plotly.graph_objects as go
-import plotly.express as px
 import pandas as pd
 import numpy as np
-
-from config import PILLARS_FW, PILLARS_MF, PILLARS_DF, GK_PILLARS
+from scorer import _parse_age
 
 st.set_page_config(
-    page_title="Moneyball // Intelligence System",
-    page_icon="⚡",
+    page_title="Moneyball — Scouting Intelligence",
+    page_icon="⚽",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── Cybersecurity CSS ──────────────────────────────────────────────────────────
-st.markdown("""
+# ── CSS ────────────────────────────────────────────────────────────────────────
+
+NAVY_CSS = """
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
 
   html, body, [data-testid="stAppViewContainer"] {
-      background-color: #080808;
-      color: #c8ffc8;
-      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      background-color: #0D1B2A;
+      color: #E8EDF2;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
   }
   [data-testid="stSidebar"] {
-      background-color: #050505;
-      border-right: 1px solid rgba(0,255,65,0.18);
+      background-color: #112236;
   }
-  h1, h2, h3 {
-      color: #00ff41;
-      text-shadow: 0 0 12px rgba(0,255,65,0.45);
-      letter-spacing: 0.07em;
-  }
-  [data-testid="metric-container"] {
-      background: #0d0d0d;
-      border: 1px solid rgba(0,255,65,0.2);
-      border-left: 3px solid #00ff41;
-      box-shadow: 0 0 10px rgba(0,255,65,0.07);
-      border-radius: 2px;
-      padding: 12px 16px;
-  }
-  [data-testid="stMetricValue"] {
-      color: #00ff41;
-      font-size: 1.45rem;
-      font-weight: 700;
-      text-shadow: 0 0 8px rgba(0,255,65,0.4);
-  }
-  [data-testid="stMetricLabel"] {
-      color: #4a8a4a;
-      font-size: 0.68rem;
-      text-transform: uppercase;
+  .section-header {
+      border-left: 3px solid #00A8FF;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 600;
       letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #E8EDF2;
+      margin-bottom: 16px;
   }
   .stButton > button {
       background: transparent;
-      color: #00ff41;
-      font-weight: 700;
-      border: 1px solid rgba(0,255,65,0.6);
-      border-radius: 2px;
+      color: #00A8FF;
+      border: 1px solid #00A8FF;
+      font-weight: 600;
       letter-spacing: 0.07em;
       width: 100%;
-      font-family: 'Share Tech Mono', 'Courier New', monospace;
-      box-shadow: 0 0 8px rgba(0,255,65,0.2);
+      min-height: 44px;
+      font-family: 'Inter', system-ui, sans-serif;
   }
   .stButton > button:hover {
-      background: rgba(0,255,65,0.08);
-      box-shadow: 0 0 18px rgba(0,255,65,0.4);
-      color: #00ff41;
+      background: rgba(0, 168, 255, 0.08);
   }
-  .stTabs [data-baseweb="tab"] {
-      color: #3a7a3a;
-      font-family: 'Share Tech Mono', 'Courier New', monospace;
-      font-size: 0.78rem;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-  }
-  .stTabs [aria-selected="true"] {
-      color: #00ff41;
-      border-bottom: 2px solid #00ff41;
-      text-shadow: 0 0 6px rgba(0,255,65,0.5);
-  }
-  .stTabs [data-baseweb="tab-list"] {
-      background: #080808;
-      border-bottom: 1px solid rgba(0,255,65,0.12);
-  }
-  hr { border-color: rgba(0,255,65,0.1); }
-  [data-testid="stDataFrame"] {
-      border: 1px solid rgba(0,255,65,0.15);
-  }
-  /* Dataframe cell text */
-  [data-testid="stDataFrame"] td, [data-testid="stDataFrame"] th {
-      color: #c8ffc8 !important;
-  }
+  .stCaption { color: #8DA4B8 !important; }
   .stMultiSelect [data-baseweb="tag"] {
-      background-color: rgba(0,255,65,0.12);
-      color: #00ff41;
+      background-color: rgba(0, 168, 255, 0.15);
+      color: #00A8FF;
+      border: 1px solid #00A8FF;
   }
-  /* Slider */
-  [data-baseweb="slider"] [data-testid="stTickBar"] { color: #4a8a4a; }
-
-  /* ── Custom components ── */
-  .cyber-header {
-      border-left: 4px solid #00ff41;
-      padding: 8px 16px;
-      background: rgba(0,255,65,0.04);
-      margin-bottom: 12px;
-      box-shadow: inset 0 0 20px rgba(0,255,65,0.03);
-  }
-  .status-bar {
-      display: flex; gap: 24px; align-items: center;
-      padding: 6px 0; margin-bottom: 12px;
-      border-bottom: 1px solid rgba(0,255,65,0.1);
-  }
-  .status-dot {
-      display: inline-block; width: 8px; height: 8px;
-      border-radius: 50%; background: #00ff41;
-      box-shadow: 0 0 6px #00ff41;
-      animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-      0%,100% { opacity:1; } 50% { opacity:0.4; }
-  }
-  .player-card {
-      background: #0d0d0d;
-      border: 1px solid rgba(0,255,65,0.18);
-      border-left: 4px solid #00ff41;
-      border-radius: 2px;
-      padding: 14px 18px;
-      margin-bottom: 10px;
-      box-shadow: 0 0 8px rgba(0,255,65,0.05);
-      position: relative;
-  }
-  .player-card::before {
-      content: '';
-      position: absolute; top: 0; right: 0;
-      width: 0; height: 0;
-      border-style: solid;
-      border-width: 0 16px 16px 0;
-      border-color: transparent rgba(0,255,65,0.25) transparent transparent;
-  }
-  .player-rank { color: #3a7a3a; font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; }
-  .player-name { color: #00ff41; font-size: 1rem; font-weight: 700; text-shadow: 0 0 6px rgba(0,255,65,0.35); }
-  .player-meta { color: #4a8a4a; font-size: 0.72rem; margin-top: 3px; letter-spacing: 0.04em; }
-  .stat-block { display: inline-block; margin-right: 20px; margin-top: 10px; }
-  .stat-label { color: #3a7a3a; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; display: block; }
-  .stat-value { color: #00ff41; font-weight: 700; font-size: 0.95rem; }
-  .stat-value.red { color: #ff4444; }
-  .stat-value.cyan { color: #00cfff; }
-  .target-badge {
-      display: inline-block; margin-top: 8px;
-      background: transparent; color: #00ff41;
-      border: 1px solid rgba(0,255,65,0.5);
-      font-size: 0.72rem; padding: 2px 10px; border-radius: 2px;
-      text-shadow: 0 0 5px rgba(0,255,65,0.4);
-      box-shadow: 0 0 6px rgba(0,255,65,0.15);
-      letter-spacing: 0.06em;
-  }
-  .gk-badge {
-      display: inline-block; margin-left: 8px;
-      background: rgba(0,207,255,0.08); color: #00cfff;
-      border: 1px solid rgba(0,207,255,0.4);
-      font-size: 0.62rem; padding: 1px 6px; border-radius: 2px;
-      letter-spacing: 0.06em;
-  }
-  .section-label {
-      color: #4a8a4a; font-size: 0.68rem;
-      text-transform: uppercase; letter-spacing: 0.14em;
-      margin-bottom: 8px; display: block;
-  }
-  .cyber-divider {
-      border: none; border-top: 1px solid rgba(0,255,65,0.1);
-      margin: 16px 0;
+  [data-testid="stDataFrame"] tr[aria-selected="true"] {
+      border-left: 3px solid #00A8FF;
   }
 </style>
-""", unsafe_allow_html=True)
-
-# ── Data loading ───────────────────────────────────────────────────────────────
-
-ALL_SEASONS = ("2023-24", "2024-25", "2025-26")
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def load_data(seasons: tuple = ALL_SEASONS):
-    from scraper import run_fbref_scrapers, run_tm_scrapers
-    from scorer import run_scoring_pipeline
-    fbref_data = run_fbref_scrapers()
-    tm_data    = run_tm_scrapers()
-    return run_scoring_pipeline(fbref_data, tm_data)
-
-
-# ── Pillar label helper ────────────────────────────────────────────────────────
-
-def get_pillar_labels(pos: str) -> list:
-    """Return display labels for a player's position group."""
-    if pos == "GK":
-        return [GK_PILLARS[k]["label"] for k in ["attacking","progression","creation","defense","retention"]]
-    return [PILLARS_MF[k]["label"] for k in ["attacking","progression","creation","defense","retention"]]
-
+"""
 
 # ── Plotly theme ───────────────────────────────────────────────────────────────
 
-PILLAR_COLS   = ["score_attacking","score_progression","score_creation","score_defense","score_retention"]
-PILLAR_COLORS = ["#ff3131","#00ff41","#00cfff","#f5a623","#c084fc"]
-
-CYBER_LAYOUT = dict(
-    paper_bgcolor="#080808",
-    plot_bgcolor="#080808",
-    font=dict(family="'Share Tech Mono', 'Courier New', monospace", color="#c8ffc8", size=11),
-    margin=dict(t=48, b=40, l=40, r=40),
+NAVY_LAYOUT = dict(
+    paper_bgcolor="#0D1B2A",
+    plot_bgcolor="#112236",
+    font=dict(family="Inter, system-ui, sans-serif", color="#E8EDF2", size=12),
+    margin=dict(t=48, b=48, l=56, r=24),
 )
 
+POS_COLORS = {
+    "FW": "#FF5757",
+    "MF": "#4CC9F0",
+    "DF": "#F5A623",
+    "GK": "#A78BFA",
+}
 
-def radar_chart(players_df: pd.DataFrame) -> go.Figure:
-    fig = go.Figure()
-    colors = PILLAR_COLORS
+# ── Data loading ───────────────────────────────────────────────────────────────
 
-    for i, (_, row) in enumerate(players_df.iterrows()):
-        labels = get_pillar_labels(row.get("Pos", "MF"))
-        values = [row.get(c, 0) for c in PILLAR_COLS]
-        values_closed = values + [values[0]]
-        labels_closed = labels + [labels[0]]
-        color = colors[i % len(colors)]
-        fig.add_trace(go.Scatterpolar(
-            r=values_closed,
-            theta=labels_closed,
-            fill="toself",
-            name=row["Player"],
-            line=dict(color=color, width=2),
-            fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.1)",
-        ))
-    fig.update_layout(
-        **CYBER_LAYOUT,
-        polar=dict(
-            bgcolor="#0d0d0d",
-            radialaxis=dict(
-                visible=True, range=[0, 50],
-                gridcolor="rgba(0,255,65,0.1)",
-                linecolor="rgba(0,255,65,0.1)",
-                tickfont=dict(color="#3a7a3a", size=8),
-            ),
-            angularaxis=dict(
-                gridcolor="rgba(0,255,65,0.1)",
-                linecolor="rgba(0,255,65,0.1)",
-                tickfont=dict(color="#c8ffc8", size=10),
-            ),
-        ),
-        legend=dict(bgcolor="#0d0d0d", bordercolor="rgba(0,255,65,0.2)", borderwidth=1,
-                    font=dict(color="#c8ffc8")),
-        height=440,
-        title=dict(text="// CAPABILITY PROFILE — TOP 5 TARGETS",
-                   font=dict(color="#00ff41", size=12)),
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def load_data() -> pd.DataFrame:
+    from scraper import run_fbref_scrapers, run_tm_scrapers
+    from scorer import run_scoring_pipeline
+    fbref_data = run_fbref_scrapers()
+    tm_data = run_tm_scrapers()
+    return run_scoring_pipeline(fbref_data, tm_data)
+
+
+# ── Pure-Python filter functions (exported for tests) ─────────────────────────
+
+
+def get_available_clubs(df: pd.DataFrame, leagues: list) -> list:
+    """Return sorted unique Squad values for rows where League is in leagues."""
+    return sorted(
+        df[df["League"].isin(leagues)]["Squad"].dropna().unique().tolist()
     )
-    return fig
+
+
+def apply_filters(
+    df: pd.DataFrame,
+    leagues: list = None,
+    positions: list = None,
+    age_range: tuple = (17, 38),
+    clubs: list = None,
+    mv_range: tuple = (0, 200),    # in €M — multiplied by 1e6 internally
+    seasons: list = None,
+) -> pd.DataFrame:
+    """Apply all 6 filters sequentially. Returns filtered, reset-indexed DataFrame."""
+    result = df.copy()
+    # FILTER-01 league
+    if leagues:
+        result = result[result["League"].isin(leagues)]
+    # FILTER-02 position
+    if positions:
+        result = result[result["Pos"].isin(positions)]
+    # FILTER-03 age (FBref "years-days" string format — use _parse_age)
+    age_float = result["Age"].apply(_parse_age)
+    result = result[(age_float >= age_range[0]) & (age_float <= age_range[1])]
+    # FILTER-04 club
+    if clubs:
+        result = result[result["Squad"].isin(clubs)]
+    # FILTER-05 market value — slider in €M, column in raw EUR
+    mv_min_eur = mv_range[0] * 1_000_000
+    mv_max_eur = mv_range[1] * 1_000_000
+    result = result[
+        (result["market_value_eur"] >= mv_min_eur) &
+        (result["market_value_eur"] <= mv_max_eur)
+    ]
+    # FILTER-06 season — defensive: skip if _season column absent
+    if "_season" in result.columns and seasons:
+        result = result[result["_season"].isin(seasons)]
+    return result.reset_index(drop=True)
+
+
+def prepare_display_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Sort by uv_score_age_weighted desc, select 10 display columns, convert values to €M."""
+    display_cols = [
+        "Player", "Squad", "League", "Pos", "Age",
+        "scout_score", "uv_score", "uv_score_age_weighted",
+        "market_value_eur", "value_gap_eur",
+    ]
+    available = [c for c in display_cols if c in df.columns]
+    out = df.sort_values("uv_score_age_weighted", ascending=False)[available].copy()
+    # Convert EUR to €M for display
+    if "market_value_eur" in out.columns:
+        out["market_value_eur"] = out["market_value_eur"] / 1_000_000
+    if "value_gap_eur" in out.columns:
+        out["value_gap_eur"] = out["value_gap_eur"] / 1_000_000
+    return out.reset_index(drop=True)
+
+
+def should_show_disclaimer(selected_leagues: list) -> bool:
+    """Return True when more than one league is selected (DASH-07)."""
+    return len(selected_leagues) > 1
+
+
+# ── Scatter chart ──────────────────────────────────────────────────────────────
 
 
 def scatter_chart(df: pd.DataFrame) -> go.Figure:
-    pos_colors = {"FW": "#ff3131", "MF": "#00ff41", "DF": "#f5a623", "GK": "#00cfff"}
+    """UV scatter: x=scout_score, y=predicted_log_mv. OLS regression line."""
     fig = go.Figure()
-
-    for pos, color in pos_colors.items():
+    # Add a temporary market_value_eur_m column for hovertemplate
+    df = df.copy()
+    df["_mv_m"] = df["market_value_eur"] / 1_000_000 if df["market_value_eur"].max() > 1000 else df["market_value_eur"]
+    for pos, color in POS_COLORS.items():
         sub = df[df["Pos"] == pos]
         if sub.empty:
             continue
         fig.add_trace(go.Scatter(
-            x=sub["market_value_eur"],
-            y=sub["scout_score"],
+            x=sub["scout_score"],
+            y=sub["predicted_log_mv"],
             mode="markers",
             name=pos,
             marker=dict(
-                size=sub["uv_score"].clip(lower=4) / 6,
+                size=7,
                 color=color,
                 opacity=0.75,
                 line=dict(width=0.5, color="rgba(0,0,0,0.4)"),
@@ -280,266 +189,246 @@ def scatter_chart(df: pd.DataFrame) -> go.Figure:
             hovertemplate=(
                 "<b>%{customdata[0]}</b><br>"
                 "Club: %{customdata[1]}<br>"
-                "Scout Score: %{y:.1f}<br>"
-                "Asset Value: €%{x:,.0f}<br>"
-                "UV Score: %{customdata[2]:.1f}"
+                "Position: %{customdata[2]}<br>"
+                "Scout Score: %{x:.1f}<br>"
+                "Market Value: €%{customdata[3]:.1f}M<br>"
+                "UV Score: %{customdata[4]:.1f}"
                 "<extra></extra>"
             ),
-            customdata=sub[["Player","Squad","uv_score"]].values,
+            customdata=sub[["Player", "Squad", "Pos", "_mv_m", "uv_score"]].values,
         ))
-
-    # Trendline
-    log_mv = np.log10(df["market_value_eur"].clip(lower=1))
-    coeffs = np.polyfit(log_mv, df["scout_score"], 1)
-    x_range = np.linspace(log_mv.min(), log_mv.max(), 100)
-    y_range = np.polyval(coeffs, x_range)
-    fig.add_trace(go.Scatter(
-        x=10**x_range, y=y_range,
-        mode="lines", name="// FAIR VALUE",
-        line=dict(color="rgba(0,255,65,0.35)", width=1.5, dash="dot"),
-    ))
-
+    # OLS regression line in log-space (x=scout_score, y=predicted_log_mv)
+    valid = df.dropna(subset=["scout_score", "predicted_log_mv"])
+    if len(valid) >= 2:
+        x_arr = valid["scout_score"].values
+        y_arr = valid["predicted_log_mv"].values
+        coeffs = np.polyfit(x_arr, y_arr, 1)
+        x_range = np.linspace(x_arr.min(), x_arr.max(), 100)
+        fig.add_trace(go.Scatter(
+            x=x_range,
+            y=np.polyval(coeffs, x_range),
+            mode="lines",
+            name="FAIR VALUE LINE",
+            line=dict(color="#00A8FF", width=1.5, dash="dot"),
+        ))
     fig.update_layout(
-        **CYBER_LAYOUT,
-        height=500,
+        **NAVY_LAYOUT,
+        height=480,
         xaxis=dict(
-            type="log", title="ASSET VALUE (€, log scale)",
-            gridcolor="rgba(0,255,65,0.07)", linecolor="rgba(0,255,65,0.15)",
-            title_font=dict(color="#4a8a4a", size=10),
-            tickfont=dict(color="#4a8a4a"),
+            title="SCOUT SCORE",
+            range=[0, 100],
+            gridcolor="rgba(255,255,255,0.06)",
+            linecolor="rgba(255,255,255,0.1)",
+            title_font=dict(color="#8DA4B8", size=11),
+            tickfont=dict(color="#8DA4B8"),
         ),
         yaxis=dict(
-            title="EXPLOIT INDEX (0–100)",
-            gridcolor="rgba(0,255,65,0.07)", linecolor="rgba(0,255,65,0.15)",
-            title_font=dict(color="#4a8a4a", size=10),
-            tickfont=dict(color="#4a8a4a"),
+            title="LOG\u2081\u2080 MARKET VALUE",
+            gridcolor="rgba(255,255,255,0.06)",
+            linecolor="rgba(255,255,255,0.1)",
+            title_font=dict(color="#8DA4B8", size=11),
+            tickfont=dict(color="#8DA4B8"),
         ),
-        legend=dict(bgcolor="#0d0d0d", bordercolor="rgba(0,255,65,0.2)", borderwidth=1,
-                    font=dict(color="#c8ffc8")),
-        title=dict(text="// THREAT MATRIX — EXPLOIT INDEX vs ASSET VALUE",
-                   font=dict(color="#00ff41", size=12)),
+        legend=dict(
+            bgcolor="#112236",
+            bordercolor="rgba(0,168,255,0.2)",
+            borderwidth=1,
+            font=dict(color="#E8EDF2"),
+        ),
     )
     return fig
 
 
-def pillar_bar_chart(df: pd.DataFrame, top_n: int = 20) -> go.Figure:
-    top = df.head(top_n).copy()
-    is_gk = (top["Pos"] == "GK").any()
-    labels = get_pillar_labels(is_gk)
-    fig = go.Figure()
-    for col, label, color in zip(PILLAR_COLS, labels, PILLAR_COLORS):
-        fig.add_trace(go.Bar(
-            name=label, x=top["Player"], y=top[col],
-            marker_color=color, marker_line_width=0,
-        ))
-    fig.update_layout(
-        **CYBER_LAYOUT,
-        barmode="stack", height=480,
-        xaxis=dict(gridcolor="rgba(0,255,65,0.07)", linecolor="rgba(0,255,65,0.15)",
-                   tickangle=-40, tickfont=dict(color="#4a8a4a", size=9)),
-        yaxis=dict(gridcolor="rgba(0,255,65,0.07)", linecolor="rgba(0,255,65,0.15)",
-                   title="SCORE", title_font=dict(color="#4a8a4a", size=10),
-                   tickfont=dict(color="#4a8a4a")),
-        legend=dict(bgcolor="#0d0d0d", bordercolor="rgba(0,255,65,0.2)", borderwidth=1,
-                    font=dict(color="#c8ffc8")),
-        title=dict(text=f"// CAPABILITY ANALYSIS — TOP {top_n} BY VULNERABILITY SCORE",
-                   font=dict(color="#00ff41", size=12)),
-    )
-    return fig
+# ── Column config ──────────────────────────────────────────────────────────────
 
+COLUMN_CONFIG = {
+    "Player":                st.column_config.TextColumn("PLAYER"),
+    "Squad":                 st.column_config.TextColumn("CLUB"),
+    "League":                st.column_config.TextColumn("LEAGUE"),
+    "Pos":                   st.column_config.TextColumn("POSITION"),
+    "Age":                   st.column_config.TextColumn("AGE"),
+    "scout_score":           st.column_config.NumberColumn("SCOUT SCORE", format="%.1f"),
+    "uv_score":              st.column_config.NumberColumn("UV SCORE", format="%.1f"),
+    "uv_score_age_weighted": st.column_config.NumberColumn("AGE-WEIGHTED UV", format="%.1f"),
+    "market_value_eur":      st.column_config.NumberColumn("VALUE (€M)", format="%.1f"),
+    "value_gap_eur":         st.column_config.NumberColumn("VALUE GAP (€M)", format="%.1f"),
+}
 
-def fmt_value(v: float) -> str:
-    if pd.isna(v): return "N/A"
-    if v >= 1_000_000: return f"€{v/1_000_000:.1f}m"
-    return f"€{v/1_000:.0f}k"
+# ── Inject CSS ─────────────────────────────────────────────────────────────────
 
+st.markdown(NAVY_CSS, unsafe_allow_html=True)
 
-def fmt_gap(v: float) -> str:
-    if pd.isna(v): return "N/A"
-    sign = "+" if v >= 0 else ""
-    label = "UNDERVALUED" if v >= 0 else "OVERVALUED"
-    return f"{sign}{fmt_value(abs(v))} {label}"
+# ── Load data ──────────────────────────────────────────────────────────────────
 
+with st.spinner("Loading data pipeline..."):
+    try:
+        full_df = load_data()
+    except Exception as e:
+        st.error(
+            f"Data pipeline failed: {e}. Try refreshing — if the problem persists, "
+            "check your internet connection and run `python scraper.py` to pre-populate the cache."
+        )
+        st.stop()
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
+
 with st.sidebar:
     st.markdown(
-        "<div style='color:#00ff41;font-size:1.1rem;font-weight:700;"
-        "text-shadow:0 0 10px rgba(0,255,65,0.5);letter-spacing:0.1em;'>"
-        "⚡ MONEYBALL</div>"
-        "<div style='color:#3a7a3a;font-size:0.65rem;letter-spacing:0.14em;"
-        "margin-top:2px;'>INTELLIGENCE SYSTEM v2.0</div>",
+        "<div style='font-size:20px;font-weight:600;color:#E8EDF2;letter-spacing:0.05em;'>MONEYBALL</div>"
+        "<div style='font-size:11px;font-weight:600;color:#8DA4B8;letter-spacing:0.12em;"
+        "text-transform:uppercase;margin-top:2px;'>SCOUTING INTELLIGENCE v2.0</div>",
         unsafe_allow_html=True,
     )
-    st.markdown("<hr class='cyber-divider'>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown("<span class='section-label'>// SEASON FILTER</span>", unsafe_allow_html=True)
-    season_filter = st.multiselect(
-        "Seasons", options=list(ALL_SEASONS),
-        default=list(ALL_SEASONS), label_visibility="collapsed"
+    # FILTER-01: League
+    st.markdown("<div class='section-header'>LEAGUE</div>", unsafe_allow_html=True)
+    LEAGUE_OPTIONS = ["EPL", "LaLiga", "Bundesliga", "SerieA", "Ligue1"]
+    sel_leagues = st.multiselect(
+        "league", options=LEAGUE_OPTIONS, default=LEAGUE_OPTIONS,
+        label_visibility="collapsed", key="sel_leagues",
     )
-    if not season_filter:
-        season_filter = list(ALL_SEASONS)
+    if not sel_leagues:
+        sel_leagues = LEAGUE_OPTIONS
 
-    st.markdown("<span class='section-label' style='margin-top:12px;display:block;'>// POSITION FILTER</span>", unsafe_allow_html=True)
-    pos_filter = st.multiselect(
-        "Position", options=["GK", "DF", "MF", "FW"],
-        default=["GK", "DF", "MF", "FW"], label_visibility="collapsed"
+    # FILTER-02: Position
+    st.markdown("<div class='section-header'>POSITION</div>", unsafe_allow_html=True)
+    POS_OPTIONS = ["GK", "DF", "MF", "FW"]
+    sel_positions = st.multiselect(
+        "position", options=POS_OPTIONS, default=POS_OPTIONS,
+        label_visibility="collapsed", key="sel_positions",
+    )
+    if not sel_positions:
+        sel_positions = POS_OPTIONS
+
+    # FILTER-03: Age range
+    st.markdown("<div class='section-header'>AGE RANGE</div>", unsafe_allow_html=True)
+    age_range = st.slider(
+        "age_range", min_value=17, max_value=38, value=(17, 38), step=1,
+        label_visibility="collapsed", key="age_range",
     )
 
-    st.markdown("<span class='section-label' style='margin-top:12px;display:block;'>// MAX ASSET VALUE (€m)</span>", unsafe_allow_html=True)
-    max_mv = st.slider("Max Market Value", 1, 200, 100, label_visibility="collapsed")
+    # FILTER-04: Club — derived dynamically from selected leagues
+    st.markdown("<div class='section-header'>CLUB</div>", unsafe_allow_html=True)
+    available_clubs = get_available_clubs(full_df, sel_leagues)
+    sel_clubs = st.multiselect(
+        "club", options=available_clubs, default=available_clubs,
+        label_visibility="collapsed", key="sel_clubs",
+    )
+    if not sel_clubs:
+        sel_clubs = available_clubs
 
-    st.markdown("<hr class='cyber-divider'>", unsafe_allow_html=True)
-    refresh = st.button("↻  RESCAN DATA")
-    if refresh:
+    # FILTER-05: Market value (€M)
+    st.markdown("<div class='section-header'>VALUE (€M)</div>", unsafe_allow_html=True)
+    mv_max_m = max(
+        int(np.ceil(full_df["market_value_eur"].max() / 1e7)) * 10, 200
+    ) if not full_df.empty else 200
+    mv_range = st.slider(
+        "mv_range", min_value=0, max_value=mv_max_m, value=(0, mv_max_m), step=1,
+        label_visibility="collapsed", key="mv_range",
+    )
+
+    # FILTER-06: Season
+    st.markdown("<div class='section-header'>SEASON</div>", unsafe_allow_html=True)
+    SEASON_OPTIONS = ["2023-24", "2024-25"]
+    sel_seasons = st.multiselect(
+        "season", options=SEASON_OPTIONS, default=SEASON_OPTIONS,
+        label_visibility="collapsed", key="sel_seasons",
+    )
+    if not sel_seasons:
+        sel_seasons = SEASON_OPTIONS
+
+    st.divider()
+    if st.button("Refresh Data"):
         st.cache_data.clear()
         st.rerun()
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(
-        "<div style='color:#3a7a3a;font-size:0.68rem;line-height:2.0;letter-spacing:0.04em;'>"
-        "SOURCES &nbsp;&nbsp; FBref · TM<br>"
-        f"SEASONS &nbsp;&nbsp; {' · '.join(season_filter)}<br>"
-        "MIN MIN &nbsp;&nbsp;&nbsp; 1,800<br>"
-        "MODEL &nbsp;&nbsp;&nbsp;&nbsp; 5-Pillar Scout Score<br>"
-        "FORMULA &nbsp;&nbsp; Score / log₁₀(Value)<br>"
-        "GK MODEL &nbsp; Shot Stopping · Distribution"
-        "</div>",
-        unsafe_allow_html=True,
-    )
+# ── Apply filters ──────────────────────────────────────────────────────────────
 
-# ── Main header ────────────────────────────────────────────────────────────────
-st.markdown(
-    "<div class='cyber-header'>"
-    "<h1 style='margin:0;font-size:1.5rem;'>MONEYBALL // INTELLIGENCE SYSTEM</h1>"
-    "<div style='color:#4a8a4a;font-size:0.72rem;letter-spacing:0.1em;margin-top:4px;'>"
-    "ENGLISH PREMIER LEAGUE · VULNERABILITY ANALYSIS · TARGET IDENTIFICATION"
-    "</div></div>",
-    unsafe_allow_html=True,
+df = apply_filters(
+    full_df,
+    leagues=sel_leagues,
+    positions=sel_positions,
+    age_range=age_range,
+    clubs=sel_clubs,
+    mv_range=mv_range,
+    seasons=sel_seasons,
 )
 
-st.markdown(
-    "<div class='status-bar'>"
-    "<span><span class='status-dot'></span>"
-    " <span style='color:#3a7a3a;font-size:0.68rem;letter-spacing:0.1em;'>SYSTEM ONLINE</span></span>"
-    "<span style='color:#3a7a3a;font-size:0.68rem;'>|</span>"
-    "<span style='color:#3a7a3a;font-size:0.68rem;letter-spacing:0.08em;'>CACHE: 7-DAY TTL</span>"
-    "<span style='color:#3a7a3a;font-size:0.68rem;'>|</span>"
-    "<span style='color:#3a7a3a;font-size:0.68rem;letter-spacing:0.08em;'>MODEL: 5-PILLAR SCOUT SCORE</span>"
-    "</div>",
-    unsafe_allow_html=True,
-)
-
-# ── Load data ──────────────────────────────────────────────────────────────────
-with st.spinner("// SCANNING... initialising data pipeline"):
-    try:
-        full_df = load_data(tuple(sorted(season_filter)))
-    except Exception as e:
-        st.error(f"// PIPELINE ERROR: {e}")
-        st.stop()
-
-# Apply filters
-df = full_df.copy()
-if pos_filter:
-    df = df[df["Pos"].isin(pos_filter)]
-df = df[df["market_value_eur"] <= max_mv * 1_000_000]
-df = df.reset_index(drop=True)
+# ── Empty state ────────────────────────────────────────────────────────────────
 
 if df.empty:
-    st.warning("// NO TARGETS MATCH CURRENT FILTERS. Adjust parameters.")
+    st.warning("NO PLAYERS MATCH CURRENT FILTERS")
+    st.caption("Try widening your age range, adding more leagues, or adjusting the market value limits.")
+    if st.button("Reset Filters"):
+        for key in ["sel_leagues", "sel_positions", "age_range", "sel_clubs", "mv_range", "sel_seasons"]:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.rerun()
     st.stop()
 
-top5 = df.head(5)
+# ── Main area header ───────────────────────────────────────────────────────────
 
-# ── KPI strip ──────────────────────────────────────────────────────────────────
-k1, k2, k3, k4 = st.columns(4)
-k1.metric("TARGETS IDENTIFIED", f"{len(full_df):,}")
-k2.metric("AFTER FILTERS", f"{len(df):,}")
-k3.metric("AVG EXPLOIT INDEX", f"{df['scout_score'].mean():.1f}")
-k4.metric("AVG ASSET VALUE", fmt_value(df["market_value_eur"].mean()))
+st.markdown(
+    "<div class='section-header' style='font-size:20px;padding:8px 16px;margin-bottom:24px;'>"
+    "MONEYBALL — SHORTLIST</div>",
+    unsafe_allow_html=True,
+)
+
+# ── Shortlist table (DASH-01, DASH-02, DASH-03, DASH-04) ──────────────────────
+
+display_df = prepare_display_df(df)
+st.caption(f"Showing {len(display_df)} players")
+
+table_state = st.dataframe(
+    display_df,
+    on_select="rerun",
+    selection_mode="single-row",
+    use_container_width=True,
+    hide_index=True,
+    column_config=COLUMN_CONFIG,
+)
+
+# ── Row-click placeholder panel (DASH-04) ─────────────────────────────────────
+
+selected_rows = table_state["selection"]["rows"]
+if selected_rows:
+    row_idx = selected_rows[0]
+    player = display_df.iloc[row_idx]
+    with st.container():
+        st.markdown(
+            "<div style='border:1px solid rgba(0,168,255,0.25);border-left:3px solid #00A8FF;"
+            "background:#112236;padding:16px;margin-top:16px;'>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(f"### Player Profile")
+        mv_display = f"€{player['market_value_eur']:.1f}M" if pd.notna(player.get('market_value_eur')) else "N/A"
+        st.markdown(
+            f"**{player['Player']}** · {player.get('Squad','—')} · "
+            f"{player.get('League','—')} · {player.get('Pos','—')} · "
+            f"Age {player.get('Age','—')} · {mv_display}"
+        )
+        c1, c2, c3 = st.columns(3)
+        c1.metric("SCOUT SCORE", f"{player.get('scout_score', 0):.1f}")
+        c2.metric("UV SCORE", f"{player.get('uv_score', 0):.1f}")
+        c3.metric("AGE-WEIGHTED UV", f"{player.get('uv_score_age_weighted', 0):.1f}")
+        st.caption("Full profile coming soon")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# ── UV scatter plot (DASH-06) ─────────────────────────────────────────────────
+
 st.markdown("<br>", unsafe_allow_html=True)
+st.markdown(
+    "<div class='section-header'>SCOUT SCORE vs MARKET VALUE</div>",
+    unsafe_allow_html=True,
+)
+# scatter_chart expects raw EUR market_value_eur and predicted_log_mv — use filtered df (not display_df)
+st.plotly_chart(scatter_chart(df), use_container_width=True)
 
-# ── Tabs ───────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4 = st.tabs([
-    "⚡  HIGH-VALUE TARGETS",
-    "📡  THREAT MATRIX",
-    "📋  FULL SCAN RESULTS",
-    "🔬  CAPABILITY ANALYSIS",
-])
-
-# ── Tab 1: Top 5 ───────────────────────────────────────────────────────────────
-with tab1:
-    col_cards, col_radar = st.columns([1, 1.3])
-
-    with col_cards:
-        st.markdown("<span class='section-label'>// TOP 5 IDENTIFIED TARGETS</span>", unsafe_allow_html=True)
-        for rank, (_, row) in enumerate(top5.iterrows(), 1):
-            gap_label = fmt_gap(row.get("value_gap_eur", float("nan")))
-            is_gk = row.get("Pos") == "GK"
-            gk_badge = "<span class='gk-badge'>GK</span>" if is_gk else ""
-            exploit_label = "SHOT STOP / 90" if is_gk else "xG / 90"
-            exploit_val = f"{row.get('Save%', 0):.1f}%" if is_gk else f"{row.get('xG_p90', row.get('xG', 0)/max(row.get('Min',1),1)*90):.2f}"
-            st.markdown(f"""
-            <div class='player-card'>
-                <div class='player-rank'>// TARGET #{rank:02d}</div>
-                <div class='player-name'>{row['Player']}{gk_badge}</div>
-                <div class='player-meta'>{row.get('Squad','—')} &nbsp;·&nbsp; {row.get('Pos','—')} &nbsp;·&nbsp; {int(row['Min']) if pd.notna(row.get('Min')) else '—'} MIN</div>
-                <div>
-                    <div class='stat-block'>
-                        <span class='stat-label'>EXPLOIT INDEX</span>
-                        <span class='stat-value'>{row['scout_score']:.1f}</span>
-                    </div>
-                    <div class='stat-block'>
-                        <span class='stat-label'>ASSET VALUE</span>
-                        <span class='stat-value cyan'>{fmt_value(row['market_value_eur'])}</span>
-                    </div>
-                    <div class='stat-block'>
-                        <span class='stat-label'>VULN SCORE</span>
-                        <span class='stat-value'>{row['uv_score']:.1f}</span>
-                    </div>
-                </div>
-                <span class='target-badge'>▲ {gap_label}</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-    with col_radar:
-        st.plotly_chart(radar_chart(top5), use_container_width=True)
-
-# ── Tab 2: Scatter ─────────────────────────────────────────────────────────────
-with tab2:
-    st.plotly_chart(scatter_chart(df), use_container_width=True)
-    st.markdown(
-        "<div style='color:#3a7a3a;font-size:0.72rem;letter-spacing:0.04em;'>"
-        "// TARGETS <span style='color:#00ff41;'>ABOVE</span> the dotted line are outperforming their asset value — "
-        "high exploit index relative to market price. "
-        "Targets <span style='color:#ff4444;'>BELOW</span> are overpriced relative to output."
-        "</div>",
-        unsafe_allow_html=True,
-    )
-
-# ── Tab 3: Leaderboard ─────────────────────────────────────────────────────────
-with tab3:
-    display_cols = ["Player","Squad","Pos","scout_score","market_value_eur","uv_score","uv_score_age_weighted","value_gap_eur"]
-    available_cols = [c for c in display_cols if c in df.columns]
-    board = df[available_cols].head(100).copy()
-    board["market_value_eur"] = board["market_value_eur"].apply(fmt_value)
-    board["value_gap_eur"]    = board["value_gap_eur"].apply(fmt_gap)
-    board["scout_score"]      = board["scout_score"].round(1)
-    board["uv_score"]         = board["uv_score"].round(1)
-    board.columns = [c.replace("_", " ").upper() for c in board.columns]
-    board.columns = ["PLAYER","CLUB","POS","EXPLOIT INDEX","ASSET VALUE","VULN SCORE","AGE-ADJ UV","VECTOR DIFF"][:len(board.columns)]
-    st.dataframe(board, use_container_width=True, hide_index=True, height=540)
-
-# ── Tab 4: Pillar breakdown ────────────────────────────────────────────────────
-with tab4:
-    top_n = st.slider("Targets to display", 5, 30, 20)
-    st.plotly_chart(pillar_bar_chart(df, top_n), use_container_width=True)
-    st.markdown(
-        "<div style='color:#3a7a3a;font-size:0.72rem;letter-spacing:0.04em;'>"
-        "// Stacked bars show each target's contribution across capability pillars. "
-        "Balanced profiles indicate well-rounded players; skewed profiles indicate specialists. "
-        "GK pillars: Shot Stopping · Distribution · Aerial Command · Sweeping · Composure."
-        "</div>",
-        unsafe_allow_html=True,
+# DASH-07: cross-league disclaimer
+if should_show_disclaimer(sel_leagues):
+    st.caption(
+        "Scout scores are normalized per league. Cross-league comparison uses a league quality "
+        "multiplier (EPL 1.10× — Ligue 1 1.00×). Direct per-90 comparisons across leagues are "
+        "not equivalent."
     )
