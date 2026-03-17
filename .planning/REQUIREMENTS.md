@@ -29,25 +29,25 @@
 
 ### Dashboard — Filters
 
-- [ ] **FILTER-01**: User can filter by league (multi-select: EPL, La Liga, Bundesliga, Serie A, Ligue 1; default: All)
-- [ ] **FILTER-02**: User can filter by position (GK, DF, MF, FW; default: All)
-- [ ] **FILTER-03**: User can filter by age range via a slider (min/max; default: 17–38)
-- [ ] **FILTER-04**: User can filter by club via a multi-select dropdown (list updates based on selected leagues)
-- [ ] **FILTER-05**: User can filter by market value range (min/max in €M; default: no restriction)
-- [ ] **FILTER-06**: User can select seasons to include (2024-25, 2025-26, or both; default: both)
+- [x] **FILTER-01**: User can filter by league (multi-select: EPL, La Liga, Bundesliga, Serie A, Ligue 1; default: All)
+- [x] **FILTER-02**: User can filter by position (GK, DF, MF, FW; default: All)
+- [x] **FILTER-03**: User can filter by age range via a slider (min/max; default: 17–38)
+- [x] **FILTER-04**: User can filter by club via a multi-select dropdown (list updates based on selected leagues)
+- [x] **FILTER-05**: User can filter by market value range (min/max in €M; default: no restriction)
+- [x] **FILTER-06**: User can select seasons to include (2024-25, 2025-26, or both; default: both)
 
 ### Dashboard — Shortlist View
 
-- [ ] **DASH-01**: Landing page displays a ranked shortlist table sorted by `uv_score_age_weighted` (descending) by default
-- [ ] **DASH-02**: Shortlist table shows: Player, Club, League, Position, Age, Scout Score, UV Score, Age-Weighted UV Score, Market Value (€M), Value Gap (€M)
+- [x] **DASH-01**: Landing page displays a ranked shortlist table sorted by `uv_score_age_weighted` (descending) by default
+- [x] **DASH-02**: Shortlist table shows: Player, Club, League, Position, Age, Scout Score, UV Score, Age-Weighted UV Score, Market Value (€M), Value Gap (€M)
 - [ ] **DASH-03**: User can click any column header to sort the shortlist by that column
-- [ ] **DASH-04**: User can click any row to open the player deep profile
+- [x] **DASH-04**: User can click any row to open the player deep profile
 
 ### Dashboard — Design
 
-- [ ] **DASH-05**: Dashboard uses professional dark theme: navy/dark charcoal background (#0D1B2A range), single primary accent color (electric blue or amber), off-white primary text (#E8EDF2), all-caps labels for column headers and section titles
-- [ ] **DASH-06**: Dashboard includes a UV scatter plot: scout score (x-axis) vs. log10 market value (y-axis), all selected players plotted, regression line shown, each point colored by position group
-- [ ] **DASH-07**: When multiple leagues are selected in the scatter view, a visible disclaimer notes that cross-league comparison uses a league quality multiplier (not raw per-90 equivalence)
+- [x] **DASH-05**: Dashboard uses professional dark theme: navy/dark charcoal background (#0D1B2A range), single primary accent color (electric blue or amber), off-white primary text (#E8EDF2), all-caps labels for column headers and section titles
+- [x] **DASH-06**: Dashboard includes a UV scatter plot: scout score (x-axis) vs. log10 market value (y-axis), all selected players plotted, regression line shown, each point colored by position group
+- [x] **DASH-07**: When multiple leagues are selected in the scatter view, a visible disclaimer notes that cross-league comparison uses a league quality multiplier (not raw per-90 equivalence)
 
 ### Player Deep Profile
 

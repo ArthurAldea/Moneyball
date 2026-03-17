@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 4
-status: in-progress
-stopped_at: Completed 04-03-PLAN.md (SCORE-08 similar players; 37 tests green)
-last_updated: "2026-03-17T03:26:54.000Z"
+status: executing
+stopped_at: Completed 05-01-PLAN.md — test scaffold with 12 RED tests
+last_updated: "2026-03-17T05:58:29.443Z"
 progress:
   total_phases: 6
-  completed_phases: 3
-  total_plans: 13
-  completed_plans: 13
+  completed_phases: 4
+  total_plans: 15
+  completed_plans: 14
 ---
 
 # Project State
@@ -77,6 +77,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 - **scrape_fbref_stat prefix normalisation:** Accepts both "standard" and "stats_standard" — preserves test_scraper.py call signature without modification.
 - **run_fbref_scrapers league-first nesting:** Returns `{league: {season: {table_type: df}}}` — league-first aligns with Phase 3 multi-league iteration pattern.
 - [Phase 04-advanced-scoring]: LEAGUE_QUALITY_MULTIPLIERS placed after TM_LEAGUE_URLS in config.py; unknown leagues get 1.0 fallback via fillna; league_quality_multiplier stored as separate column for Phase 5 dashboard display
+- [Phase 05]: conftest.py Streamlit stub installed via sys.modules injection — prevents module-level network calls during test collection for Streamlit apps
+- [Phase 05]: _require_app() TDD guard pattern: import wrapped in BaseException handler, each test calls guard first — 12 RED tests collectible before any implementation
 
 ## Progress
 Phase 1: [████████████████████] 3/3 plans (100%) — Complete
@@ -85,8 +87,8 @@ Phase 3: [████████████████████] 3/3 plan
 Phase 4: [████████████████████] 3/3 plans (100%) — Complete
 
 ## Session Continuity
-Last session: 2026-03-17T03:26:54.000Z
-Stopped at: Completed 04-03-PLAN.md (SCORE-08 similar players; 37 tests green)
+Last session: 2026-03-17T05:58:29.440Z
+Stopped at: Completed 05-01-PLAN.md — test scaffold with 12 RED tests
 Resume file: None
 
 ## Blockers/Concerns
