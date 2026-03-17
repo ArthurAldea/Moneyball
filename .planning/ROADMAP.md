@@ -5,7 +5,7 @@
 | # | Phase | Goal | Requirements | Status |
 |---|-------|------|--------------|--------|
 | 1 | FBref Scraper (EPL) | Replace Understat + API-Football with a complete FBref scraper covering all required stat tables for EPL only | DATA-01 (EPL), DATA-02, DATA-05, DATA-06, DATA-07 | ✅ Complete |
-| 2 | Merger & Scorer Rewrite (EPL End-to-End) | Rebuild merger and scorer to ingest FBref columns, confirm all pillar models produce sensible scores for EPL, and add age-weighted UV | DATA-03, SCORE-01, SCORE-02, SCORE-03, SCORE-06, SCORE-07 | In Progress (3/4) |
+| 2 | Merger & Scorer Rewrite (EPL End-to-End) | Rebuild merger and scorer to ingest FBref columns, confirm all pillar models produce sensible scores for EPL, and add age-weighted UV | DATA-03, SCORE-01, SCORE-02, SCORE-03, SCORE-06, SCORE-07 | ✅ Complete |
 | 3 | Multi-League Expansion | Extend scraper and Transfermarkt integration to La Liga, Bundesliga, Serie A, and Ligue 1; add League column throughout the pipeline | DATA-01 (all leagues), DATA-04, DATA-05 (league key) | Not Started |
 | 4 | Advanced Scoring | Apply team strength adjustment and league quality multiplier across the full five-league pool; add cosine similar-player computation | SCORE-04, SCORE-05, SCORE-08 | Not Started |
 | 5 | Dashboard Rebuild — Shortlist & Filters | Replace current tab layout with shortlist-first landing page, all six filters, professional dark theme, and UV scatter plot | FILTER-01, FILTER-02, FILTER-03, FILTER-04, FILTER-05, FILTER-06, DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06, DASH-07 | Not Started |
@@ -40,14 +40,14 @@
 
 ### Phase 2: Merger & Scorer Rewrite (EPL End-to-End)
 
-**Status:** In Progress
+**Status:** ✅ Complete
 
 | Plan | Title | Status |
 |------|-------|--------|
 | 02-01 | Config & Test Infrastructure | ✅ Done |
 | 02-02 | Merger Rewrite | ✅ Done |
 | 02-03 | Scorer Rewrite + Age-Weight | ✅ Done |
-| 02-04 | app.py Rewire & Integration | 🔲 Not Started |
+| 02-04 | app.py Rewire & Integration | ✅ Done |
 
 **Goal:** Rebuild `merger.py` and `scorer.py` to join the eight FBref tables into one DataFrame, substitute FBref column names for the old Understat/API-Football equivalents in all pillar models, scrape EPL league standings for team-strength input, and produce `uv_score` and `uv_score_age_weighted` columns — with the full EPL pipeline verified end-to-end before multi-league work begins.
 
