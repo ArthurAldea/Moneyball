@@ -20,7 +20,7 @@ load_dotenv()
 
 from config import (
     SEASONS, API_FOOTBALL_BASE, API_FOOTBALL_LEAGUE, API_FOOTBALL_RATE_S,
-    TM_BASE, TM_HEADERS, TM_RATE_LIMIT_S,
+    TM_BASE, TM_HEADERS, TM_RATE_LIMIT_S, TM_LEAGUE_URLS,
     FBREF_LEAGUES, FBREF_TABLES, FBREF_SEASONS, FBREF_RATE_MIN, FBREF_RATE_MAX,
     FBREF_BACKOFF_SEQUENCE, FBREF_TABLE_URL_SEGMENTS, FBREF_MIN_MINUTES, FBREF_HEADERS,
     build_fbref_url,
@@ -349,12 +349,12 @@ def run_fbref_scrapers(
     on one table does not abort the remaining tables (DATA-05).
 
     Rate limiting (DATA-06): scrape_fbref_stat inserts a random 3.5–6.0s delay
-    before each HTTP request. Total cold run: 8 tables × 2 seasons = 16 requests
-    ≈ 80–100 seconds.
+    before each HTTP request. Total cold run: 9 tables × 2 seasons × 5 leagues = 90
+    requests ≈ 315–540 seconds (5–9 minutes).
 
     Args:
-        leagues: List of league keys to scrape (default: ["EPL"]).
-                 Only "EPL" is supported in Phase 1.
+        leagues: List of league keys to scrape (default: all 5 leagues from FBREF_LEAGUES).
+                 Supported: EPL, LaLiga, Bundesliga, SerieA, Ligue1.
         seasons: List of season labels to scrape (default: FBREF_SEASONS =
                  ["2023-24", "2024-25"]).
 
@@ -628,10 +628,8 @@ def run_api_football_scrapers() -> dict:
 
 
 # ── Transfermarkt via curl_cffi — club squad pages ────────────────────────────
-# Scrapes each EPL club's kader (squad) page instead of the league ranking,
+# Scrapes each club's kader (squad) page instead of the league ranking,
 # giving full coverage of all registered players (~500/season) not just top-100.
-
-TM_EPL_CLUBS_URL = "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1"
 
 
 def _parse_tm_value(raw: str) -> float:
@@ -654,9 +652,9 @@ def _parse_tm_value(raw: str) -> float:
         return float("nan")
 
 
-def _get_tm_club_list(season_year: int, session) -> list:
-    """Scrape EPL clubs page → [{slug, id, name}]. One request."""
-    url = f"{TM_EPL_CLUBS_URL}/saison_id/{season_year}"
+def _get_tm_club_list(league: str, season_year: int, session) -> list:
+    """Scrape league clubs page → [{slug, id, name}]. One request."""
+    url = f"{TM_LEAGUE_URLS[league]}/saison_id/{season_year}"
     time.sleep(TM_RATE_LIMIT_S)
     try:
         resp = session.get(url, impersonate=IMPERSONATE, headers=TM_HEADERS, timeout=30)
@@ -732,8 +730,8 @@ def _scrape_tm_squad(club: dict, season_year: int, season_label: str, session) -
     return result
 
 
-def scrape_tm_season(season_year: int, season_label: str) -> pd.DataFrame:
-    cache_key = f"tm_values_{season_label.replace('-', '')}"
+def scrape_tm_season(season_year: int, season_label: str, league: str = "EPL") -> pd.DataFrame:
+    cache_key = f"tm_values_{league}_{season_label}"
     path = _cache_path(cache_key)
 
     if _is_fresh(path):
@@ -744,11 +742,11 @@ def scrape_tm_season(season_year: int, season_label: str) -> pd.DataFrame:
     session = cf_requests.Session()
     time.sleep(TM_RATE_LIMIT_S)  # warm-up pause before first request
 
-    clubs = _get_tm_club_list(season_year, session)
+    clubs = _get_tm_club_list(league, season_year, session)
     if not clubs:
-        print("  [warn] No EPL clubs found — cannot scrape TM")
+        print(f"  [warn] No {league} clubs found — cannot scrape TM")
         return pd.DataFrame()
-    print(f"    {len(clubs)} EPL clubs found")
+    print(f"    {len(clubs)} {league} clubs found")
 
     all_rows: list  = []
     seen_names: set = set()
@@ -775,29 +773,49 @@ def scrape_tm_season(season_year: int, season_label: str) -> pd.DataFrame:
     return df
 
 
-def run_tm_scrapers() -> pd.DataFrame:
+def run_tm_scrapers(leagues: list | None = None) -> pd.DataFrame:
+    """
+    Scrape Transfermarkt market values for all given leagues and seasons.
+
+    Args:
+        leagues: List of league keys to scrape (default: all 5 from TM_LEAGUE_URLS).
+                 None = all 5 leagues.
+
+    Returns:
+        Combined DataFrame across all leagues with columns:
+        player_name_tm, club_tm, market_value_eur, season, league_tm
+    """
+    if leagues is None:
+        leagues = list(TM_LEAGUE_URLS.keys())
+
     frames = []
-    for season_label, season_year in SEASONS.items():
-        df = scrape_tm_season(season_year, season_label)
-        if not df.empty:
-            frames.append(df)
+    for league in leagues:
+        print(f"\n[TM] League: {league}")
+        for season_label, season_year in SEASONS.items():
+            if season_label not in FBREF_SEASONS:
+                continue  # only scrape seasons we have FBref data for
+            df = scrape_tm_season(season_year, season_label, league=league)
+            if not df.empty:
+                df = df.copy()
+                df["league_tm"] = league
+                frames.append(df)
 
     if not frames:
         return pd.DataFrame()
 
-    combined = pd.concat(frames, ignore_index=True).sort_values("season")
-    latest = (
-        combined.dropna(subset=["market_value_eur"])
-        .groupby("player_name_tm", as_index=False)
-        .last()
-    )
-    return latest[["player_name_tm", "club_tm", "market_value_eur"]]
+    # Concatenate all leagues; do NOT deduplicate across leagues — same player name
+    # can appear in multiple leagues (e.g. a player who transferred leagues between seasons).
+    # match_market_values uses club cross-check (Pass 3) to disambiguate.
+    combined = pd.concat(frames, ignore_index=True)
+    # Keep only rows with valid market values; drop duplicates within same player+league
+    combined = combined.dropna(subset=["market_value_eur"])
+    return combined[["player_name_tm", "club_tm", "market_value_eur", "season", "league_tm"]]
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("=== FBref Scraper — Phase 1 (EPL) ===")
+    print("=== FBref Scraper — Phase 3 (All 5 Leagues) ===")
     results = run_fbref_scrapers()
 
     total_tables = 0
