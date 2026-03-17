@@ -103,11 +103,6 @@ POS_COLORS = {
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def load_data() -> pd.DataFrame:
-    import os
-    _test_csv = os.path.join(os.path.dirname(__file__), "cache", "test_data.csv")
-    if os.path.exists(_test_csv):
-        import pandas as _pd
-        return _pd.read_csv(_test_csv)
     from scraper import run_fbref_scrapers, run_tm_scrapers
     from scorer import run_scoring_pipeline
     fbref_data = run_fbref_scrapers()
