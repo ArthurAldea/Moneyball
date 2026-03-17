@@ -3,26 +3,26 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 3
-status: planning
-stopped_at: Phase 3 context gathered (03-CONTEXT.md written; ready to plan)
-last_updated: "2026-03-17T03:00:00.000Z"
+status: in_progress
+stopped_at: Plan 03-01 executed (data-layer foundation for 5-league scraping complete)
+last_updated: "2026-03-17T04:00:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 10
+  completed_plans: 8
 ---
 
 # Project State
 
 **Current Phase:** 3
-**Status:** Ready to plan
-**Last Updated:** 2026-03-17 (Plan 02-04 executed)
+**Status:** In Progress (Plan 03-01 complete)
+**Last Updated:** 2026-03-17 (Plan 03-01 executed)
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-03-16)
 **Core value:** Surface players whose performance most exceeds their market price — in the right positional and team context.
-**Current focus:** Phase 2 complete — ready for Phase 3 Multi-League Expansion
+**Current focus:** Phase 3 Multi-League Expansion — Plan 03-01 complete, scraper data layer ready for 5 leagues
 
 ## Phase Progress
 
@@ -30,18 +30,22 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 |---|-------|--------|
 | 1 | FBref Scraper (EPL) | ✅ Complete (Plans 01-01, 01-02, 01-03 done) |
 | 2 | Merger & Scorer Rewrite (EPL End-to-End) | ✅ Complete (4/4 plans done) |
-| 3 | Multi-League Expansion | 📋 Context Ready (03-CONTEXT.md written) |
+| 3 | Multi-League Expansion | 🔄 In Progress (1/3 plans done) |
 | 4 | Advanced Scoring | 🔲 Not Started |
 | 5 | Dashboard Rebuild — Shortlist & Filters | 🔲 Not Started |
 | 6 | Player Deep Profile | 🔲 Not Started |
 
 ## Current Position
 
-**Plan:** Phase 3 context gathered. Next: Plan Phase 3
-**Next:** Run `/gsd:plan-phase 3` to create execution plans for Multi-League Expansion
+**Plan:** 03-01 complete. Next: Plan 03-02 (multi-league merger)
+**Next:** Execute Plan 03-02 — build_dataset and merger multi-league support
 
 ## Accumulated Decisions
 
+- **[03-01] TM cache key uses season label as-is (2024-25 not 202425):** Matches FBref cache convention and is human-readable. run_tm_scrapers returns combined DataFrame with league_tm column; no cross-league deduplication — merger Pass 3 club cross-check disambiguates.
+- **[03-01] run_tm_scrapers returns season + league_tm columns:** Enables Phase 3 merger to filter by league. Combined DataFrame not deduplicated across leagues — same player name can appear in multiple leagues after a transfer.
+- **[03-01] TM_EPL_CLUBS_URL dead constant removed:** TM_LEAGUE_URLS in config.py is now the single source for all league club URLs (wettbewerb codes GB1, ES1, L1, IT1, FR1).
+- **[03-01] FBREF_SEASONS filter in run_tm_scrapers:** Only scrapes TM for seasons with FBref coverage; skips 2025-26 mid-season data.
 - **[02-04] Tab 3 leaderboard uses available_cols guard before rename:** `uv_score_age_weighted` silently skipped when absent — no crash if column missing.
 - **[02-04] GK exploit label changed to Save% (.1f% format):** Consistent with scorer.py GK shot-stopping pillar definition (rate metric, not raw count).
 - **[02-03] _parse_age handles FBref 'years-days' format:** Splits on '-' and takes first token; returns float(NaN) for unparseable values including None and 'N/A'.
@@ -68,11 +72,12 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Progress
 Phase 1: [████████████████████] 3/3 plans (100%) — Complete
 Phase 2: [████████████████████] 4/4 plans (100%) — Complete
+Phase 3: [███░░░░░░░░░░░░░░░░░] 1/3 plans (33%) — In Progress
 
 ## Session Continuity
-Last session: 2026-03-17T03:00:00.000Z
-Stopped at: Phase 3 context gathered (discuss-phase 3 complete)
-Resume file: .planning/phases/03-multi-league-expansion/03-CONTEXT.md
+Last session: 2026-03-17T04:00:00.000Z
+Stopped at: Plan 03-01 executed (scraper multi-league foundation complete)
+Resume file: .planning/phases/03-multi-league-expansion/03-01-SUMMARY.md
 
 ## Blockers/Concerns
-- None. Phase 2 fully complete. Dashboard shows real EPL players via FBref pipeline.
+- None. Plan 03-01 complete; 33 tests green. Ready for Plan 03-02 (multi-league merger).
