@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from rapidfuzz import process, fuzz
 
-from config import SUM_STATS, MEAN_STATS, PER90_STATS, MIN_MINUTES, MIN_MINUTES_PER_SEASON, FUZZY_THRESHOLD
+from config import SUM_STATS, MEAN_STATS, PER90_STATS, MIN_MINUTES, MIN_MINUTES_PER_SEASON, FUZZY_THRESHOLD, FUZZY_THRESHOLD_PASS3
 
 
 # ── Name normalisation ────────────────────────────────────────────────────────
@@ -20,6 +20,25 @@ def normalize_name(name: str) -> str:
     nfd = unicodedata.normalize("NFD", name)
     ascii_name = nfd.encode("ascii", "ignore").decode("ascii")
     return " ".join(ascii_name.lower().split())
+
+
+def normalize_club(name: str) -> str:
+    """
+    Normalize club name for cross-check in Pass 3 TM matching.
+    Strips accents, lowercases, removes common prefixes/suffixes:
+    FC, CF, AFC (e.g. 'FC Barcelona' → 'barcelona', 'Arsenal AFC' → 'arsenal').
+    """
+    import re
+    if not isinstance(name, str):
+        return ""
+    nfd = unicodedata.normalize("NFD", name)
+    ascii_name = nfd.encode("ascii", "ignore").decode("ascii")
+    normalized = " ".join(ascii_name.lower().split())
+    # Strip leading/trailing FC, CF, AFC (with or without dot)
+    normalized = re.sub(r'\bfc\.?\b', '', normalized).strip()
+    normalized = re.sub(r'\bcf\.?\b', '', normalized).strip()
+    normalized = re.sub(r'\bafc\.?\b', '', normalized).strip()
+    return " ".join(normalized.split())  # collapse any extra whitespace
 
 
 # ── Multi-club deduplication ──────────────────────────────────────────────────
@@ -219,6 +238,10 @@ def _aggregate_fbref_seasons(fbref_league_data: dict) -> pd.DataFrame:
         sota = grouped["SoTA"].replace(0, np.nan)
         grouped["PSxG/SoT"] = grouped["PSxG"] / sota
 
+    # single_season flag: True if player only appeared in one season
+    season_count = combined.groupby("Player")["_season"].nunique()
+    grouped["single_season"] = grouped["Player"].map(season_count) == 1
+
     return grouped
 
 
@@ -298,6 +321,10 @@ def match_market_values(df: pd.DataFrame, tm_df: pd.DataFrame) -> pd.DataFrame:
 
     df["market_value_eur"] = df["_norm"].map(tm_lookup)
 
+    # Build TM club lookup for Pass 3 cross-check (graceful if club_tm column absent)
+    tm_club_lookup = dict(zip(tm["_norm"], tm["club_tm"])) if "club_tm" in tm.columns else {}
+
+    # Pass 2: Fuzzy WRatio >= FUZZY_THRESHOLD (80)
     unmatched = df["market_value_eur"].isna()
     for idx, row in df[unmatched].iterrows():
         result = process.extractOne(
@@ -307,6 +334,26 @@ def match_market_values(df: pd.DataFrame, tm_df: pd.DataFrame) -> pd.DataFrame:
         )
         if result:
             df.at[idx, "market_value_eur"] = tm_lookup[result[0]]
+
+    # Pass 3: Fuzzy WRatio >= FUZZY_THRESHOLD_PASS3 (70) + club name must match
+    # For players still unmatched, accept a lower-confidence name match ONLY if
+    # the TM club name also matches the FBref Squad after normalization.
+    unmatched_p3 = df["market_value_eur"].isna()
+    squad_col = "Squad" if "Squad" in df.columns else None
+    if squad_col:
+        for idx, row in df[unmatched_p3].iterrows():
+            result = process.extractOne(
+                row["_norm"], tm_norms,
+                scorer=fuzz.WRatio,
+                score_cutoff=FUZZY_THRESHOLD_PASS3,
+            )
+            if result:
+                candidate_norm = result[0]
+                # Only accept if club names match after normalization
+                fbref_club = normalize_club(str(row.get(squad_col, "")))
+                tm_club = normalize_club(str(tm_club_lookup.get(candidate_norm, "")))
+                if fbref_club and tm_club and fbref_club == tm_club:
+                    df.at[idx, "market_value_eur"] = tm_lookup[candidate_norm]
 
     df.drop(columns=["_norm"], inplace=True)
     return df
