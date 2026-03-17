@@ -13,7 +13,7 @@
 - [ ] **DATA-03**: System scrapes FBref league standings table per league for team strength adjustment
 - [x] **DATA-04**: System scrapes Transfermarkt market values for all clubs across all 5 leagues
 - [x] **DATA-05**: System caches all scraped data as CSV files with 7-day TTL using naming convention `cache/fbref_{league}_{table}_{season}.csv` and `cache/tm_values_{league}_{season}.csv`
-- [ ] **DATA-06**: System applies polite scraping: randomized 3.5–6.0s delays between FBref requests, exponential backoff (30s → 60s → 120s) on 429 responses
+- [x] **DATA-06**: System applies polite scraping: randomized 3.5–6.0s delays between FBref requests, exponential backoff (30s → 60s → 120s) on 429 responses
 - [ ] **DATA-07**: System filters out players with fewer than 900 minutes in a given season before aggregation
 
 ### Scoring Model

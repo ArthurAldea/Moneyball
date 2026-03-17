@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 05.1
 status: planning
-stopped_at: Completed 05-02 — dashboard post-review fixes applied, plan complete
-last_updated: "2026-03-17T07:17:41.327Z"
+stopped_at: Completed 05.1-01 — Playwright FBref scraper, all 63 tests passing
+last_updated: "2026-03-17T07:54:43.555Z"
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 17
+  completed_plans: 16
 ---
 
 # Project State
@@ -85,6 +85,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 - [Phase 05-02]: Club filter defaults to blank (empty list); blank = all via if-not guard — matches UX spec
 - [Phase 05-02]: prepare_display_df applies _parse_age and casts Age to Int64 for clean integer display in shortlist table
 - [Phase 05-02]: stHeader and stToolbar CSS targeted explicitly in NAVY_CSS to force navy top bar matching #0D1B2A background
+- [Phase 05.1]: _do_playwright_get extracted as thin wrapper for test isolation; FBREF_HEADERS removed from imports after Playwright migration
 
 ## Progress
 Phase 1: [████████████████████] 3/3 plans (100%) — Complete
@@ -93,8 +94,8 @@ Phase 3: [████████████████████] 3/3 plan
 Phase 4: [████████████████████] 3/3 plans (100%) — Complete
 
 ## Session Continuity
-Last session: 2026-03-17T07:12:27.643Z
-Stopped at: Completed 05-02 — dashboard post-review fixes applied, plan complete
+Last session: 2026-03-17T07:54:43.552Z
+Stopped at: Completed 05.1-01 — Playwright FBref scraper, all 63 tests passing
 Resume file: None
 
 ## Accumulated Context
