@@ -59,24 +59,50 @@ def _score_group(df: pd.DataFrame, pillars: dict) -> pd.DataFrame:
 
 
 def compute_scout_scores(df: pd.DataFrame) -> pd.DataFrame:
-    """Score each position group with its own pillar model, then recombine."""
+    """
+    Score each position group with its own pillar model, then recombine.
+
+    Normalization scope (SCORE-01, Phase 3): MinMaxScaler is fitted per
+    league+position group independently. This ensures the top forward in
+    La Liga and the top forward in EPL both receive scout_score near 100,
+    even if their absolute per-90 stats differ.
+
+    If df has no 'League' column (EPL-only legacy mode), falls back to
+    scoring the full DataFrame as a single group (Phase 2 behavior).
+    """
     df = df.copy()
     # Ensure primary position only (take first token of 'DF,MF' etc.)
     df["Pos"] = df["Pos"].astype(str).str.split(",").str[0].str.strip()
 
-    groups = {
-        "GK": (df["Pos"] == "GK", GK_PILLARS),
-        "FW": (df["Pos"] == "FW", PILLARS_FW),
-        "MF": (df["Pos"] == "MF", PILLARS_MF),
-        "DF": (df["Pos"] == "DF", PILLARS_DF),
-    }
+    all_frames = []
 
-    frames = []
-    for pos, (mask, pillars) in groups.items():
-        if mask.any():
-            frames.append(_score_group(df[mask].copy(), pillars))
+    if "League" not in df.columns:
+        # backward compat: pre-Phase-3 callers may not include League column
+        leagues_to_score = [None]
+    else:
+        leagues_to_score = list(df["League"].unique())
 
-    return pd.concat(frames, ignore_index=True) if frames else df
+    for league in leagues_to_score:
+        if league is None:
+            league_df = df
+        else:
+            league_df = df[df["League"] == league].copy()
+
+        if league_df.empty:
+            continue
+
+        groups = {
+            "GK": (league_df["Pos"] == "GK", GK_PILLARS),
+            "FW": (league_df["Pos"] == "FW", PILLARS_FW),
+            "MF": (league_df["Pos"] == "MF", PILLARS_MF),
+            "DF": (league_df["Pos"] == "DF", PILLARS_DF),
+        }
+
+        for pos, (mask, pillars) in groups.items():
+            if mask.any():
+                all_frames.append(_score_group(league_df[mask].copy(), pillars))
+
+    return pd.concat(all_frames, ignore_index=True) if all_frames else df
 
 
 def _parse_age(age_val) -> float:
