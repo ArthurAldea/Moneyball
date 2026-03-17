@@ -60,6 +60,22 @@ NAVY_CSS = """
       color: #00A8FF;
       border: 1px solid #00A8FF;
   }
+  [data-testid="stHeader"],
+  [data-testid="stToolbar"] {
+      background-color: #0D1B2A !important;
+  }
+  .stDataFrame,
+  [data-testid="stDataFrameResizable"] {
+      background: #0D1B2A !important;
+      color: #E8EDF2 !important;
+  }
+  .stDataFrame iframe {
+      background: #0D1B2A !important;
+  }
+  .stDataFrame table {
+      background: #0D1B2A !important;
+      color: #E8EDF2 !important;
+  }
   [data-testid="stDataFrame"] tr[aria-selected="true"] {
       border-left: 3px solid #00A8FF;
   }
@@ -87,6 +103,11 @@ POS_COLORS = {
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def load_data() -> pd.DataFrame:
+    import os
+    _test_csv = os.path.join(os.path.dirname(__file__), "cache", "test_data.csv")
+    if os.path.exists(_test_csv):
+        import pandas as _pd
+        return _pd.read_csv(_test_csv)
     from scraper import run_fbref_scrapers, run_tm_scrapers
     from scorer import run_scoring_pipeline
     fbref_data = run_fbref_scrapers()
@@ -158,6 +179,9 @@ def prepare_display_df(df: pd.DataFrame) -> pd.DataFrame:
         out["market_value_eur"] = out["market_value_eur"] / 1_000_000
     if "value_gap_eur" in out.columns:
         out["value_gap_eur"] = out["value_gap_eur"] / 1_000_000
+    # Parse FBref "years-days" age format to integer year
+    if "Age" in out.columns:
+        out["Age"] = out["Age"].apply(_parse_age).astype("Int64")
     return out.reset_index(drop=True)
 
 
@@ -316,7 +340,7 @@ with st.sidebar:
     st.markdown("<div class='section-header'>CLUB</div>", unsafe_allow_html=True)
     available_clubs = get_available_clubs(full_df, sel_leagues)
     sel_clubs = st.multiselect(
-        "club", options=available_clubs, default=available_clubs,
+        "club", options=available_clubs, default=[],
         label_visibility="collapsed", key="sel_clubs",
     )
     if not sel_clubs:
@@ -407,10 +431,12 @@ if selected_rows:
         )
         st.markdown(f"### Player Profile")
         mv_display = f"€{player['market_value_eur']:.1f}M" if pd.notna(player.get('market_value_eur')) else "N/A"
+        raw_age = player.get('Age', '—')
+        age_display = int(_parse_age(raw_age)) if pd.notna(_parse_age(raw_age)) else raw_age
         st.markdown(
             f"**{player['Player']}** · {player.get('Squad','—')} · "
             f"{player.get('League','—')} · {player.get('Pos','—')} · "
-            f"Age {player.get('Age','—')} · {mv_display}"
+            f"Age {age_display} · {mv_display}"
         )
         c1, c2, c3 = st.columns(3)
         c1.metric("SCOUT SCORE", f"{player.get('scout_score', 0):.1f}")
