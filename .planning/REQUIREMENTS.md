@@ -8,11 +8,11 @@
 
 ### Data Pipeline
 
-- [ ] **DATA-01**: User can load player stats from FBref for all top 5 European leagues (EPL, La Liga, Bundesliga, Serie A, Ligue 1) for 2024-25 and 2025-26 seasons via `python scraper.py`
+- [x] **DATA-01**: User can load player stats from FBref for all top 5 European leagues (EPL, La Liga, Bundesliga, Serie A, Ligue 1) for 2024-25 and 2025-26 seasons via `python scraper.py`
 - [ ] **DATA-02**: System scrapes all required FBref stat tables per league: `stats_standard`, `stats_shooting`, `stats_passing`, `stats_defense`, `stats_possession`, `stats_misc`, `stats_keeper`, `stats_keeper_adv`
 - [ ] **DATA-03**: System scrapes FBref league standings table per league for team strength adjustment
-- [ ] **DATA-04**: System scrapes Transfermarkt market values for all clubs across all 5 leagues
-- [ ] **DATA-05**: System caches all scraped data as CSV files with 7-day TTL using naming convention `cache/fbref_{league}_{table}_{season}.csv` and `cache/tm_values_{league}_{season}.csv`
+- [x] **DATA-04**: System scrapes Transfermarkt market values for all clubs across all 5 leagues
+- [x] **DATA-05**: System caches all scraped data as CSV files with 7-day TTL using naming convention `cache/fbref_{league}_{table}_{season}.csv` and `cache/tm_values_{league}_{season}.csv`
 - [ ] **DATA-06**: System applies polite scraping: randomized 3.5–6.0s delays between FBref requests, exponential backoff (30s → 60s → 120s) on 429 responses
 - [ ] **DATA-07**: System filters out players with fewer than 900 minutes in a given season before aggregation
 
