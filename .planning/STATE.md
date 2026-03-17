@@ -4,25 +4,25 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 3
 status: in_progress
-stopped_at: Plan 03-02 executed (multi-league merger with 3-pass TM matching and single_season flag complete)
-last_updated: "2026-03-17T05:00:00.000Z"
+stopped_at: Plan 03-03 executed (per-league MinMaxScaler normalization in compute_scout_scores; Phase 3 complete)
+last_updated: "2026-03-17T06:00:00.000Z"
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
 
-**Current Phase:** 3
-**Status:** In Progress (Plan 03-02 complete)
-**Last Updated:** 2026-03-17 (Plan 03-02 executed)
+**Current Phase:** 4
+**Status:** Phase 3 Complete — Ready for Phase 4 (Advanced Scoring)
+**Last Updated:** 2026-03-17 (Plan 03-03 executed)
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-03-16)
 **Core value:** Surface players whose performance most exceeds their market price — in the right positional and team context.
-**Current focus:** Phase 3 Multi-League Expansion — Plan 03-02 complete, merger multi-league support ready
+**Current focus:** Phase 4 Advanced Scoring — Phase 3 complete, full 5-league pipeline ready
 
 ## Phase Progress
 
@@ -30,18 +30,20 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 |---|-------|--------|
 | 1 | FBref Scraper (EPL) | ✅ Complete (Plans 01-01, 01-02, 01-03 done) |
 | 2 | Merger & Scorer Rewrite (EPL End-to-End) | ✅ Complete (4/4 plans done) |
-| 3 | Multi-League Expansion | 🔄 In Progress (2/3 plans done) |
+| 3 | Multi-League Expansion | ✅ Complete (3/3 plans done) |
 | 4 | Advanced Scoring | 🔲 Not Started |
 | 5 | Dashboard Rebuild — Shortlist & Filters | 🔲 Not Started |
 | 6 | Player Deep Profile | 🔲 Not Started |
 
 ## Current Position
 
-**Plan:** 03-02 complete. Next: Plan 03-03 (run_scoring_pipeline multi-league wiring)
-**Next:** Execute Plan 03-03 — full end-to-end 5-league pipeline and scorer integration
+**Plan:** 03-03 complete. Phase 3 done.
+**Next:** Phase 4 — Advanced Scoring
 
 ## Accumulated Decisions
 
+- **[03-03] compute_scout_scores outer per-league loop:** MinMaxScaler fitted per league+position group independently — top forward in La Liga scores ~100 regardless of EPL forward distribution. Backward-compat fallback when League column absent.
+- **[03-03] UV regression (compute_efficiency) unchanged:** Still operates on full pooled multi-league DataFrame (SCORE-06) — cross-league undervaluation comparison preserved.
 - **[03-02] Pass 3 requires club cross-check:** At WRatio 70-79 name similarity there are too many false positives for multi-language player names; requiring club match prevents incorrect value attachments. normalize_club strips FC/CF/AFC affixes with word-boundary regex.
 - **[03-02] tm_club_lookup defensively empty when club_tm absent:** When TM DataFrame lacks club_tm column (legacy test fixtures), Pass 3 silently skips — backward-compatible with all prior tests.
 - **[03-02] single_season flag in _aggregate_fbref_seasons:** True when player appears in only 1 season (nunique==1 on _season). Available for Phase 5 dashboard caveat display.
@@ -75,12 +77,12 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Progress
 Phase 1: [████████████████████] 3/3 plans (100%) — Complete
 Phase 2: [████████████████████] 4/4 plans (100%) — Complete
-Phase 3: [███████░░░░░░░░░░░░░] 2/3 plans (67%) — In Progress
+Phase 3: [████████████████████] 3/3 plans (100%) — Complete
 
 ## Session Continuity
-Last session: 2026-03-17T05:00:00.000Z
-Stopped at: Plan 03-02 executed (multi-league merger with 3-pass TM matching and single_season flag complete)
-Resume file: .planning/phases/03-multi-league-expansion/03-02-SUMMARY.md
+Last session: 2026-03-17T06:00:00.000Z
+Stopped at: Plan 03-03 executed (per-league MinMaxScaler normalization; Phase 3 complete; 40 tests green)
+Resume file: .planning/phases/03-multi-league-expansion/03-03-SUMMARY.md
 
 ## Blockers/Concerns
-- None. Plan 03-02 complete; 37 tests green. Ready for Plan 03-03 (multi-league scoring pipeline).
+- None. Phase 3 complete; 40 tests green. Ready for Phase 4 (Advanced Scoring).
