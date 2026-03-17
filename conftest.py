@@ -172,3 +172,22 @@ def _make_streamlit_stub():
 # Install the Streamlit stub before any test file imports app.py.
 # Must be done at conftest load time so module-level Streamlit calls become no-ops.
 sys.modules["streamlit"] = _make_streamlit_stub()
+
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _stub_playwright_default(monkeypatch):
+    """
+    Autouse fixture: stub _do_playwright_get to return empty HTML so tests that
+    indirectly call scrape_fbref_standings (via build_dataset → attach_league_position)
+    never launch a real Playwright browser or hang on Cloudflare.
+
+    Tests that need specific behaviour override this with their own monkeypatch:
+    - test_backoff_on_429: patches _do_playwright_get → challenge HTML
+    - test_column_presence: patches _playwright_fetch directly
+    - test_standings_scraper_caches: patches _playwright_fetch directly
+    """
+    import scraper as scraper_mod
+    monkeypatch.setattr(scraper_mod, "_do_playwright_get", lambda url: "<html><body></body></html>")
