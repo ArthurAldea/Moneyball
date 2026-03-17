@@ -147,15 +147,223 @@ def test_uv_regression_full_pool():
 # ── Phase 3: Multi-league scorer tests ───────────────────────────────────────
 
 def test_per_league_normalization_isolation():
-    """compute_scout_scores normalizes per-league: top FW in each league scores near 100 independently."""
-    pytest.skip("stub — implemented in Plan 03-03 Task 3")
+    """
+    compute_scout_scores normalizes per-league: top FW in each league scores near 100
+    independently, even when League A's absolute stats are much higher than League B's.
+
+    Tests ROADMAP Phase 3 success criterion 4 and SCORE-01.
+    """
+    from scorer import compute_scout_scores
+
+    # League A: 3 forwards with high absolute stats
+    league_a = pd.DataFrame({
+        "Player":    ["A1", "A2", "A3"],
+        "Pos":       ["FW", "FW", "FW"],
+        "League":    ["LeagueA", "LeagueA", "LeagueA"],
+        "Age":       ["25-100", "26-100", "27-100"],
+        # FW pillar stat columns (per-90s, rate stats)
+        "xG_p90":    [0.90, 0.50, 0.20],
+        "Gls_p90":   [0.80, 0.40, 0.15],
+        "Ast_p90":   [0.30, 0.20, 0.10],
+        "SoT_p90":   [3.50, 2.00, 0.80],
+        "PrgC_p90":  [8.00, 5.00, 2.00],
+        "DrbSucc%":  [70.0, 50.0, 30.0],
+        "xA_p90":    [0.30, 0.20, 0.10],
+        "KP_p90":    [3.00, 2.00, 1.00],
+        "Tkl_p90":   [1.00, 0.80, 0.50],
+        "Int_p90":   [0.50, 0.40, 0.20],
+        "Blocks_p90":[0.30, 0.20, 0.10],
+        "DuelsWon_p90": [3.00, 2.00, 1.00],
+        "Cmp%":      [80.0, 75.0, 70.0],
+        "DuelsWon%": [60.0, 55.0, 50.0],
+    })
+
+    # League B: 3 forwards with much lower absolute stats (e.g. weaker league)
+    league_b = pd.DataFrame({
+        "Player":    ["B1", "B2", "B3"],
+        "Pos":       ["FW", "FW", "FW"],
+        "League":    ["LeagueB", "LeagueB", "LeagueB"],
+        "Age":       ["25-100", "26-100", "27-100"],
+        "xG_p90":    [0.35, 0.20, 0.05],
+        "Gls_p90":   [0.30, 0.15, 0.05],
+        "Ast_p90":   [0.15, 0.08, 0.03],
+        "SoT_p90":   [1.50, 0.80, 0.30],
+        "PrgC_p90":  [3.00, 1.80, 0.60],
+        "DrbSucc%":  [50.0, 35.0, 20.0],
+        "xA_p90":    [0.15, 0.08, 0.03],
+        "KP_p90":    [1.20, 0.80, 0.30],
+        "Tkl_p90":   [0.50, 0.30, 0.15],
+        "Int_p90":   [0.25, 0.15, 0.08],
+        "Blocks_p90":[0.15, 0.08, 0.03],
+        "DuelsWon_p90": [1.50, 0.90, 0.40],
+        "Cmp%":      [72.0, 68.0, 62.0],
+        "DuelsWon%": [55.0, 48.0, 42.0],
+    })
+
+    combined = pd.concat([league_a, league_b], ignore_index=True)
+    result = compute_scout_scores(combined)
+
+    # Top forward in League A (A1) should have scout_score near 100
+    a1_score = result[result["Player"] == "A1"]["scout_score"].iloc[0]
+    # Top forward in League B (B1) should also have scout_score near 100 (per-league normalization)
+    b1_score = result[result["Player"] == "B1"]["scout_score"].iloc[0]
+
+    # If scored on pooled data, B1 would score far below 100 because A players dominate
+    # With per-league normalization, both should be near the top of their respective league
+    assert a1_score > 80, f"A1 (best FW in LeagueA) should score > 80, got {a1_score:.1f}"
+    assert b1_score > 80, (
+        f"B1 (best FW in LeagueB) should score > 80 with per-league normalization, "
+        f"got {b1_score:.1f}. If this fails, normalization is across leagues (incorrect)."
+    )
+
+    # Bottom forward in each league (A3, B3) should score near 0 within their league
+    a3_score = result[result["Player"] == "A3"]["scout_score"].iloc[0]
+    b3_score = result[result["Player"] == "B3"]["scout_score"].iloc[0]
+    assert a3_score < 20, f"A3 (worst FW in LeagueA) should score < 20, got {a3_score:.1f}"
+    assert b3_score < 20, f"B3 (worst FW in LeagueB) should score < 20, got {b3_score:.1f}"
 
 
 def test_uv_regression_on_full_pool_multi_league():
-    """compute_efficiency fits UV regression on full 5-league pool; len(result) equals total player count."""
-    pytest.skip("stub — implemented in Plan 03-03 Task 3")
+    """compute_efficiency fits UV regression on full 5-league pool (SCORE-06); len(result) = total players."""
+    from scorer import compute_efficiency
+
+    # Create a 3-league synthetic DataFrame (20 players per league = 60 total)
+    n_per_league = 20
+    leagues = ["EPL", "LaLiga", "Bundesliga"]
+    rows = []
+    for i, league in enumerate(leagues):
+        for j in range(n_per_league):
+            rows.append({
+                "Player":           f"{league}_P{j}",
+                "Pos":              ["FW", "MF", "DF", "GK"][j % 4],
+                "League":           league,
+                "Age":              "25-100",
+                "scout_score":      float((i * n_per_league + j) * 1.5),
+                "market_value_eur": 1e6 * ((i * n_per_league + j) + 1),
+                "score_attacking":  0.0,
+                "score_progression": 0.0,
+                "score_creation":   0.0,
+                "score_defense":    0.0,
+                "score_retention":  0.0,
+            })
+
+    df = pd.DataFrame(rows)
+    total_players = len(df)
+
+    result = compute_efficiency(df)
+
+    # UV regression must operate on the full pool
+    assert len(result) == total_players, (
+        f"compute_efficiency should return all {total_players} players (full pool), "
+        f"got {len(result)}"
+    )
+
+    # League column must be preserved in the output
+    assert "League" in result.columns, "League column missing from compute_efficiency output"
+
+    # All 3 leagues must appear in the result
+    result_leagues = set(result["League"].unique())
+    assert set(leagues) == result_leagues, (
+        f"Expected leagues {leagues} in result, got {sorted(result_leagues)}"
+    )
+
+    # UV score column present
+    assert "uv_score" in result.columns, "uv_score column missing"
+    assert result["uv_score"].notna().all(), "uv_score should not have NaN values"
 
 
 def test_league_column_preserved_through_pipeline():
-    """run_scoring_pipeline output has League column with correct values for each player."""
-    pytest.skip("stub — implemented in Plan 03-03 Task 3")
+    """run_scoring_pipeline output has League column with correct per-player values."""
+    from scorer import run_scoring_pipeline
+
+    # Build minimal synthetic fbref_data for 2 leagues
+    def _make_season_data(players, squad, league):
+        """Minimal season data for run_scoring_pipeline."""
+        n = len(players)
+        standard = pd.DataFrame({
+            "Player": players,
+            "Squad":  [squad] * n,
+            "Pos":    ["FW"] * n,
+            "Age":    ["25-100"] * n,
+            "Min":    [1500] * n,
+            "Gls":    [5] * n,
+            "Ast":    [3] * n,
+            "xG":     [4.5] * n,
+            "xA":     [2.5] * n,
+            "npxG":   [4.0] * n,
+            "SoT":    [15] * n,
+            "PrgP":   [60] * n,
+            "PrgC":   [25] * n,
+            "SCA":    [40] * n,
+            "KP":     [20] * n,
+            "Cmp":    [700] * n,
+            "Att":    [850] * n,
+        })
+        possession = pd.DataFrame({
+            "Player": players,
+            "Squad":  [squad] * n,
+            "Pos":    ["FW"] * n,
+            "Age":    ["25-100"] * n,
+            "Att":    [12] * n,
+            "Succ":   [8] * n,
+            "PrgC":   [25] * n,
+        })
+        misc = pd.DataFrame({
+            "Player": players,
+            "Squad":  [squad] * n,
+            "Pos":    ["FW"] * n,
+            "Age":    ["25-100"] * n,
+            "Won":    [25] * n,
+            "Lost":   [8] * n,
+        })
+        defense = pd.DataFrame({
+            "Player": players,
+            "Squad":  [squad] * n,
+            "Pos":    ["FW"] * n,
+            "Age":    ["25-100"] * n,
+            "Tkl":    [15] * n,
+            "Int":    [8] * n,
+            "Blocks": [5] * n,
+        })
+        return {
+            "stats_standard": standard,
+            "stats_possession": possession,
+            "stats_misc": misc,
+            "stats_defense": defense,
+        }
+
+    fbref_data = {
+        "EPL":    {"2024-25": _make_season_data(["Alice", "Bob"], "Arsenal", "EPL")},
+        "LaLiga": {"2024-25": _make_season_data(["Carlos", "Diego"], "Real Madrid", "LaLiga")},
+    }
+
+    # Provide minimal TM data for market values
+    tm_data = pd.DataFrame({
+        "player_name_tm": ["Alice", "Bob", "Carlos", "Diego"],
+        "club_tm":        ["Arsenal", "Arsenal", "Real Madrid", "Real Madrid"],
+        "market_value_eur": [20e6, 15e6, 30e6, 25e6],
+        "league_tm":      ["EPL", "EPL", "LaLiga", "LaLiga"],
+    })
+
+    result = run_scoring_pipeline(fbref_data, tm_data)
+
+    assert not result.empty, "run_scoring_pipeline returned empty DataFrame"
+    assert "League" in result.columns, "League column missing from pipeline output"
+    assert result["League"].notna().all(), "League column has NaN values in pipeline output"
+
+    # EPL players should have League="EPL"
+    epl_players = result[result["Player"].isin(["Alice", "Bob"])]
+    assert (epl_players["League"] == "EPL").all(), (
+        f"EPL players should have League='EPL', got: {epl_players['League'].tolist()}"
+    )
+
+    # LaLiga players should have League="LaLiga"
+    liga_players = result[result["Player"].isin(["Carlos", "Diego"])]
+    assert (liga_players["League"] == "LaLiga").all(), (
+        f"LaLiga players should have League='LaLiga', got: {liga_players['League'].tolist()}"
+    )
+
+    # UV score columns must be present
+    assert "uv_score" in result.columns, "uv_score missing from pipeline output"
+    assert "uv_score_age_weighted" in result.columns, "uv_score_age_weighted missing from pipeline output"
+    assert "scout_score" in result.columns, "scout_score missing from pipeline output"
