@@ -3,21 +3,21 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 2
-status: planning
-stopped_at: Phase 2 context gathered
-last_updated: "2026-03-16T03:56:26.737Z"
+status: in-progress
+stopped_at: Phase 2 Plan 02-01 complete — ready for 02-02
+last_updated: "2026-03-17T00:15:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 7
+  completed_plans: 4
 ---
 
 # Project State
 
 **Current Phase:** 2
-**Status:** Ready to plan
-**Last Updated:** 2026-03-16 (Plan 01-03 complete)
+**Status:** In progress (Plan 02-01 complete)
+**Last Updated:** 2026-03-17 (Plan 02-01 executed)
 
 ## Project Reference
 See: .planning/PROJECT.md (updated 2026-03-16)
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 | # | Phase | Status |
 |---|-------|--------|
 | 1 | FBref Scraper (EPL) | ✅ Complete (Plans 01-01, 01-02, 01-03 done) |
-| 2 | Merger & Scorer Rewrite (EPL End-to-End) | 🔲 Not Started |
+| 2 | Merger & Scorer Rewrite (EPL End-to-End) | 🔄 In Progress (1/4 plans done) |
 | 3 | Multi-League Expansion | 🔲 Not Started |
 | 4 | Advanced Scoring | 🔲 Not Started |
 | 5 | Dashboard Rebuild — Shortlist & Filters | 🔲 Not Started |
@@ -37,11 +37,14 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-**Plan:** 01-03 complete — Phase 1 fully done
-**Next:** Phase 2 — Merger & Scorer Rewrite (EPL End-to-End)
+**Plan:** Phase 2, Plan 02-01 complete. Next: Plan 02-02 (Merger Rewrite)
+**Next:** Execute Plan 02-02 — build merger.py with 9-table join, standings scraper, per-90 derivation
 
 ## Accumulated Decisions
 
+- **[02-01] DrbSucc% replaces DrbSucc_p90 in FW/DF Progression:** Rate metric (Succ/Att×100) preferred over raw count — quality over volume.
+- **[02-01] MEAN_STATS=[] in aggregation:** All rate stats re-derived from summed raw counts post cross-season aggregation; never averaged across seasons.
+- **[02-01] GK Shot Stopping: Save% (0.60) + PSxG/SoT (0.40):** Two complementary signals replace the single derived SavePct; PSxG/SoT rewards stopping harder shots.
 - **stats_gca added as 9th table:** Captures SCA (shot-creating actions) needed by SCORE-02 MF Progression in Phase 2 — avoids a re-scrape later.
 - **FBREF_SEASONS = ["2023-24", "2024-25"]:** 2025-26 excluded — mid-season, incomplete data.
 - **Cache naming convention (DATA-05):** `cache/fbref_{LEAGUE}_{table}_{season}.csv` — e.g. `cache/fbref_EPL_stats_standard_2024-25.csv`.
@@ -57,13 +60,14 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 - **app.py shows 0 players in Phase 1:** Expected and acceptable — stubs return {} so merger produces empty output. Phase 2 will rewire load_data to call run_fbref_scrapers.
 
 ## Progress
-[████████████████████] 3/3 plans (100%) — Phase 1 complete
+Phase 1: [████████████████████] 3/3 plans (100%) — Complete
+Phase 2: [█████░░░░░░░░░░░░░░░] 1/4 plans (25%) — In Progress
 
 ## Session Continuity
-Last session: 2026-03-16T03:56:26.727Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-merger-scorer-rewrite-epl-end-to-end/02-CONTEXT.md
+Last session: 2026-03-17T00:15:00.000Z
+Stopped at: Plan 02-01 complete (config.py + test stubs)
+Resume file: .planning/phases/02-merger-scorer-rewrite-epl-end-to-end/02-02-PLAN.md
 
 ## Blockers/Concerns
-- ⚠️ [Phase 2] `merger.py` uses old Understat/API-Football column names (`xGChain`, `GoalsConceded`, etc.) — must be remapped to FBref columns (`PrgP`, `GA`, `Save%`) before scoring pipeline runs. `app.py` shows 0 players until this is resolved.
+- ⚠️ [Phase 2 / Plan 02-02] `merger.py` uses old Understat/API-Football column names (`xGChain`, `GoalsConceded`, etc.) — full rewrite pending in Plan 02-02. `app.py` still shows 0 players until 02-02 is complete.
 
