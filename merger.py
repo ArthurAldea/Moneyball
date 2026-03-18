@@ -285,7 +285,13 @@ def attach_league_position(df: pd.DataFrame, league: str = "EPL",
     Multi-club players (Squad contains digit + 'Club'/'team') get NaN.
     Calls scrape_fbref_standings — uses cache on warm runs.
     """
-    from scraper import scrape_fbref_standings
+    from scraper import scrape_fbref_standings, _fbref_cache_path, _is_fresh
+    # Only use cached standings — never launch a browser from within the pipeline.
+    # Standings are pre-populated by running `python scraper.py`.
+    if not _is_fresh(_fbref_cache_path(league, "standings", season)):
+        df = df.copy()
+        df["league_position"] = np.nan
+        return df
     try:
         standings = scrape_fbref_standings(league, season)
     except Exception as e:
@@ -356,6 +362,117 @@ def match_market_values(df: pd.DataFrame, tm_df: pd.DataFrame) -> pd.DataFrame:
                     df.at[idx, "market_value_eur"] = tm_lookup[candidate_norm]
 
     df.drop(columns=["_norm"], inplace=True)
+    return df
+
+
+# ── Understat xG/xA join ──────────────────────────────────────────────────────
+
+def attach_understat_xg(df: pd.DataFrame, understat_data: dict) -> pd.DataFrame:
+    """
+    Join Understat xG and xA onto the FBref merged DataFrame.
+
+    Strategy:
+    - Aggregate understat_data across all seasons per player per league (sum xG, xA, Min)
+    - Pass 1: exact match on normalized Player name within same League
+    - Pass 2: rapidfuzz WRatio >= FUZZY_THRESHOLD for still-unmatched players (same League)
+    - Unmatched players get NaN for xG/xA — NOT dropped
+    - Logs WARNING if match rate < 70% for any league
+
+    Args:
+        df:             FBref merged DataFrame (one row per player, already aggregated
+                        across seasons). Must have "Player" and "League" columns.
+        understat_data: {league: {season_label: DataFrame}} from run_understat_scrapers().
+                        Each inner DataFrame has Player, Squad, xG, xA, Min columns.
+
+    Returns:
+        Copy of df with "xG" and "xA" columns added (NaN for unmatched players).
+    """
+    import logging
+
+    if not understat_data:
+        df = df.copy()
+        df["xG"] = float("nan")
+        df["xA"] = float("nan")
+        return df
+
+    df = df.copy()
+    df["xG"] = float("nan")
+    df["xA"] = float("nan")
+
+    # Process each league independently
+    for league in (df["League"].unique() if "League" in df.columns else []):
+        # Collect all seasons for this league into one DataFrame
+        league_frames = []
+        league_seasons = understat_data.get(league, {})
+        for season_label, season_df in league_seasons.items():
+            if not season_df.empty:
+                league_frames.append(season_df)
+
+        if not league_frames:
+            continue
+
+        # Aggregate across seasons: sum xG and xA per player
+        us_combined = pd.concat(league_frames, ignore_index=True)
+        # Ensure numeric
+        us_combined["xG"] = pd.to_numeric(us_combined["xG"], errors="coerce").fillna(0)
+        us_combined["xA"] = pd.to_numeric(us_combined["xA"], errors="coerce").fillna(0)
+
+        us_agg = (
+            us_combined
+            .groupby("Player", as_index=False)
+            .agg({"xG": "sum", "xA": "sum"})
+        )
+
+        # Normalize names for matching
+        us_agg["_norm"] = us_agg["Player"].apply(normalize_name)
+        us_lookup_xg = dict(zip(us_agg["_norm"], us_agg["xG"]))
+        us_lookup_xa = dict(zip(us_agg["_norm"], us_agg["xA"]))
+        us_norms = list(us_lookup_xg.keys())
+
+        league_mask = df["League"] == league
+        df.loc[league_mask, "_norm"] = df.loc[league_mask, "Player"].apply(normalize_name)
+
+        # Pass 1: exact name match
+        df.loc[league_mask, "xG"] = df.loc[league_mask, "_norm"].map(us_lookup_xg)
+        df.loc[league_mask, "xA"] = df.loc[league_mask, "_norm"].map(us_lookup_xa)
+
+        # Pass 2: fuzzy WRatio >= FUZZY_THRESHOLD for still-unmatched players.
+        # Secondary gate: token_sort_ratio >= 60 prevents false positives where
+        # one name is a substring of another (e.g. "Known Player" inside "Unknown Player").
+        _FUZZY_TOKEN_SORT_MIN = 60
+        still_unmatched = league_mask & df["xG"].isna()
+        for idx, row in df[still_unmatched].iterrows():
+            query = row.get("_norm", "")
+            if not query:
+                continue
+            result = process.extractOne(
+                query, us_norms,
+                scorer=fuzz.WRatio,
+                score_cutoff=FUZZY_THRESHOLD,
+            )
+            if result:
+                matched_norm = result[0]
+                # Reject if token-sorted similarity is too low (substring containment false positive)
+                if fuzz.token_sort_ratio(query, matched_norm) < _FUZZY_TOKEN_SORT_MIN:
+                    continue
+                df.at[idx, "xG"] = us_lookup_xg[matched_norm]
+                df.at[idx, "xA"] = us_lookup_xa.get(matched_norm, float("nan"))
+
+        # Log warning if match rate < 70%
+        total_league = league_mask.sum()
+        matched_league = (league_mask & df["xG"].notna()).sum()
+        match_rate = matched_league / total_league if total_league > 0 else 0
+        if match_rate < 0.70:
+            logging.warning(
+                f"[merger] Understat match rate for {league} is {match_rate:.1%} "
+                f"({matched_league}/{total_league} players). "
+                "Check for name format changes or missing Understat coverage."
+            )
+
+    # Clean up temp column
+    if "_norm" in df.columns:
+        df.drop(columns=["_norm"], inplace=True)
+
     return df
 
 
