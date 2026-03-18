@@ -35,6 +35,7 @@
 - [x] **FILTER-04**: User can filter by club via a multi-select dropdown (list updates based on selected leagues)
 - [x] **FILTER-05**: User can filter by market value range (min/max in €M; default: no restriction)
 - [x] **FILTER-06**: User can select seasons to include (2024-25, 2025-26, or both; default: both)
+- [x] **FILTER-07**: User can search by player name via a text input in the sidebar; the shortlist table filters in real-time to rows where the player name contains the search string (case-insensitive, partial match)
 
 ### Dashboard — Shortlist View
 
@@ -51,11 +52,12 @@
 
 ### Player Deep Profile
 
-- [ ] **PROFILE-01**: Player profile displays a header block: full name, age, nationality, current club, league, primary position, market value
-- [ ] **PROFILE-02**: Player profile displays a radar chart of the 5 pillar scores (Attack / Progression / Creation / Defense / Retention) vs. cross-league position-peer median, rendered as a filled polygon
-- [ ] **PROFILE-03**: Player profile displays a full stat table grouped by pillar, showing: stat name | raw value | per-90 value | percentile rank vs. cross-league position peers (visualized as a colored bar: red→amber→green)
-- [ ] **PROFILE-04**: Player profile shows the player's location on the UV scatter chart (highlighted with a distinct marker)
-- [ ] **PROFILE-05**: Player profile displays a "Similar Players" panel showing top 5 players by cosine profile similarity: Player, Club, League, Age, Market Value, Age-Weighted UV Score
+- [x] **PROFILE-01**: Player profile displays a header block: full name, age, nationality, current club, league, primary position, market value
+- [x] **PROFILE-02**: Player profile displays a radar chart of the 5 pillar scores (Attack / Progression / Creation / Defense / Retention) vs. cross-league position-peer median, rendered as a filled polygon
+- [x] **PROFILE-03**: Player profile displays a full stat table grouped by pillar, showing: stat name | raw value | per-90 value | percentile rank vs. cross-league position peers (visualized as a colored bar: red→amber→green)
+- [x] **PROFILE-04**: Player profile shows the player's location on the UV scatter chart (highlighted with a distinct marker)
+- [x] **PROFILE-05**: Player profile displays a "Similar Players" panel showing top 5 players by cosine profile similarity: Player, Club, League, Age, Market Value, Age-Weighted UV Score
+- [x] **PROFILE-06**: User can select multiple players from the shortlist table; the profile view enters comparison mode showing overlaid radar charts (one filled polygon per player with distinct colors and a legend), a per-90 stat table with one column per selected player, and all selected players highlighted with distinct markers on the UV scatter chart
 
 ---
 
@@ -120,7 +122,9 @@
 | PROFILE-03 | Phase 6 |
 | PROFILE-04 | Phase 6 |
 | PROFILE-05 | Phase 6 |
+| FILTER-07 | Phase 6 |
+| PROFILE-06 | Phase 6 |
 
 ---
 
-*Last updated: 2026-03-16 after requirements definition*
+*Last updated: 2026-03-18 — added FILTER-07 (player name search) and PROFILE-06 (multi-player comparison) to Phase 6*
