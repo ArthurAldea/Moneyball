@@ -176,12 +176,14 @@ def test_per_league_normalization_isolation():
     """
     from scorer import compute_scout_scores
 
-    # League A: 3 forwards with high absolute stats (post-FBref Lit migration columns)
+    # League A: 3 forwards with high absolute stats (post-FBref Lit + Understat columns)
     league_a = pd.DataFrame({
         "Player":    ["A1", "A2", "A3"],
         "Pos":       ["FW", "FW", "FW"],
         "League":    ["LeagueA", "LeagueA", "LeagueA"],
         "Age":       ["25-100", "26-100", "27-100"],
+        "xG_p90":    [0.70, 0.35, 0.10],  # Phase 06.1: FW attacking uses xG_p90
+        "xA_p90":    [0.40, 0.20, 0.08],  # Phase 06.1: FW creation uses xA_p90
         "Gls_p90":   [0.80, 0.40, 0.15],
         "Ast_p90":   [0.30, 0.20, 0.10],
         "SoT_p90":   [3.50, 2.00, 0.80],
@@ -198,6 +200,8 @@ def test_per_league_normalization_isolation():
         "Pos":       ["FW", "FW", "FW"],
         "League":    ["LeagueB", "LeagueB", "LeagueB"],
         "Age":       ["25-100", "26-100", "27-100"],
+        "xG_p90":    [0.25, 0.12, 0.04],  # Phase 06.1: FW attacking uses xG_p90
+        "xA_p90":    [0.18, 0.09, 0.03],  # Phase 06.1: FW creation uses xA_p90
         "Gls_p90":   [0.30, 0.15, 0.05],
         "Ast_p90":   [0.15, 0.08, 0.03],
         "SoT_p90":   [1.50, 0.80, 0.30],

@@ -163,9 +163,9 @@ FUZZY_THRESHOLD_PASS3 = 70
 #   Pres, aerial duels, pass completion) are no longer served by FBref.
 #
 # Pillar mapping with available stats:
-#   Attacking:   Gls_p90 + SoT_p90 + Ast_p90   (goal output + shot threat)
+#   Attacking:   FW: xG_p90 + SoT_p90 + Ast_p90; MF: xG_p90 + Gls_p90 + SoT_p90; DF: Gls_p90 + Ast_p90 + SoT_p90
 #   Progression: Sh_p90  + Fld_p90               (shot volume + fouls drawn)
-#   Creation:    Ast_p90 + Crs_p90               (assists + crosses)
+#   Creation:    FW/MF: xA_p90 + Ast_p90 + Crs_p90; DF: Ast_p90 + Crs_p90
 #   Defense:     Int_p90 + TklW_p90              (interceptions + tackles won)
 #   Retention:   Fld_p90                         (winning free-kicks = composure proxy)
 #
@@ -195,7 +195,7 @@ PILLARS_FW = {
         "weight": 45,
         "label": "Attacking",
         "color": "#ff3131",
-        "stats": {"Gls_p90": 0.55, "SoT_p90": 0.30, "Ast_p90": 0.15},
+        "stats": {"xG_p90": 0.45, "SoT_p90": 0.35, "Ast_p90": 0.20},
     },
     "progression": {
         "weight": 20,
@@ -203,7 +203,12 @@ PILLARS_FW = {
         "color": "#00ff41",
         "stats": {"Sh_p90": 0.65, "Fld_p90": 0.35},
     },
-    "creation":   {**_CREATION, "weight": 20},
+    "creation": {
+        "weight": 20,
+        "label": "Creation",
+        "color": "#00cfff",
+        "stats": {"xA_p90": 0.50, "Ast_p90": 0.30, "Crs_p90": 0.20},
+    },
     "defense":    {**_DEFENSE,  "weight":  5},
     "retention":  {**_RETENTION, "weight": 10},
 }
@@ -213,7 +218,7 @@ PILLARS_MF = {
         "weight": 20,
         "label": "Attacking",
         "color": "#ff3131",
-        "stats": {"Gls_p90": 0.45, "Ast_p90": 0.35, "SoT_p90": 0.20},
+        "stats": {"xG_p90": 0.40, "Gls_p90": 0.35, "SoT_p90": 0.25},
     },
     "progression": {
         "weight": 30,
@@ -221,7 +226,12 @@ PILLARS_MF = {
         "color": "#00ff41",
         "stats": {"Crs_p90": 0.55, "Fld_p90": 0.45},
     },
-    "creation":   {**_CREATION, "weight": 25},
+    "creation": {
+        "weight": 25,
+        "label": "Creation",
+        "color": "#00cfff",
+        "stats": {"xA_p90": 0.50, "Ast_p90": 0.30, "Crs_p90": 0.20},
+    },
     "defense":    {**_DEFENSE,  "weight": 15},
     "retention":  {**_RETENTION, "weight": 10},
 }
