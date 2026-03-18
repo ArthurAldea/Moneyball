@@ -439,6 +439,8 @@ def render_single_profile(player_row: pd.Series, full_df: pd.DataFrame) -> None:
             "<th style='text-align:left;color:#8DA4B8;padding:4px 8px;border-bottom:"
             "1px solid rgba(255,255,255,0.1);'>STAT</th>"
             "<th style='text-align:right;color:#8DA4B8;padding:4px 8px;border-bottom:"
+            "1px solid rgba(255,255,255,0.1);'>RAW</th>"
+            "<th style='text-align:right;color:#8DA4B8;padding:4px 8px;border-bottom:"
             "1px solid rgba(255,255,255,0.1);'>PER 90</th>"
             "<th style='text-align:left;color:#8DA4B8;padding:4px 8px;border-bottom:"
             "1px solid rgba(255,255,255,0.1);'>PERCENTILE</th>"
@@ -452,7 +454,7 @@ def render_single_profile(player_row: pd.Series, full_df: pd.DataFrame) -> None:
 
             # Pillar group header row
             rows_html.append(
-                f"<tr><td colspan='3' style='padding:8px 8px 2px 8px;"
+                f"<tr><td colspan='4' style='padding:8px 8px 2px 8px;"
                 f"color:#00A8FF;font-weight:600;font-size:11px;"
                 f"letter-spacing:0.1em;text-transform:uppercase;'>"
                 f"{pillar_label}</td></tr>"
@@ -470,6 +472,13 @@ def render_single_profile(player_row: pd.Series, full_df: pd.DataFrame) -> None:
                     continue
                 val = float(val)
 
+                # Raw value: strip _p90 suffix to get the raw count column name
+                raw_col = stat_col[:-4] if stat_col.endswith("_p90") else None
+                if raw_col and raw_col in player_row.index and not pd.isna(player_row.get(raw_col)):
+                    raw_str = f"{float(player_row.get(raw_col)):.1f}"
+                else:
+                    raw_str = "—"
+
                 # Percentile against full_df same-position peers
                 if stat_col in peer_pool_pos.columns:
                     peer_series = peer_pool_pos[stat_col].dropna()
@@ -482,6 +491,8 @@ def render_single_profile(player_row: pd.Series, full_df: pd.DataFrame) -> None:
                 rows_html.append(
                     f"<tr style='border-bottom:1px solid rgba(255,255,255,0.05);'>"
                     f"<td style='padding:4px 8px;color:#E8EDF2;'>{stat_display}</td>"
+                    f"<td style='padding:4px 8px;text-align:right;color:#8DA4B8;"
+                    f"font-variant-numeric:tabular-nums;'>{raw_str}</td>"
                     f"<td style='padding:4px 8px;text-align:right;color:#E8EDF2;"
                     f"font-variant-numeric:tabular-nums;'>{val:.2f}</td>"
                     f"<td style='padding:4px 8px;'>{bar_html}</td>"
