@@ -172,7 +172,7 @@ Plans:
 
 Plans:
 - [x] 06.1-01-PLAN.md — Wave 0 test stubs (scraper + merger) + config UNDERSTAT_LEAGUE_NAMES + scrape_understat_league() + run_understat_scrapers()
-- [ ] 06.1-02-PLAN.md — attach_understat_xg() in merger.py + wire into build_dataset() + update run_scoring_pipeline()
+- [x] 06.1-02-PLAN.md — attach_understat_xg() in merger.py + wire into build_dataset() + update run_scoring_pipeline()
 - [ ] 06.1-03-PLAN.md — Wave 0 scorer stubs + FW/MF pillar weight updates + CLAUDE.md update
 
 **Success Criteria:**
