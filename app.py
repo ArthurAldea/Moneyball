@@ -855,16 +855,66 @@ def scatter_chart(
 # ── Column config ──────────────────────────────────────────────────────────────
 
 COLUMN_CONFIG = {
-    "Player":                st.column_config.TextColumn("PLAYER"),
-    "Squad":                 st.column_config.TextColumn("CLUB"),
-    "League":                st.column_config.TextColumn("LEAGUE"),
-    "Pos":                   st.column_config.TextColumn("POSITION"),
-    "Age":                   st.column_config.TextColumn("AGE"),
-    "scout_score":           st.column_config.NumberColumn("SCOUT SCORE", format="%.1f"),
-    "uv_score":              st.column_config.NumberColumn("UV SCORE", format="%.1f"),
-    "uv_score_age_weighted": st.column_config.NumberColumn("AGE-WEIGHTED UV", format="%.1f"),
-    "market_value_eur":      st.column_config.NumberColumn("VALUE (€M)", format="%.1f"),
-    "value_gap_eur":         st.column_config.NumberColumn("VALUE GAP (€M)", format="%.1f"),
+    "Player": st.column_config.TextColumn(
+        "PLAYER",
+        help="Player's full name as listed in FBref.",
+    ),
+    "Squad": st.column_config.TextColumn(
+        "CLUB",
+        help="Club the player was registered with during the selected season.",
+    ),
+    "League": st.column_config.TextColumn(
+        "LEAGUE",
+        help="One of the top 5 European leagues: EPL, La Liga, Bundesliga, Serie A, or Ligue 1.",
+    ),
+    "Pos": st.column_config.TextColumn(
+        "POSITION",
+        help="Primary position from FBref: FW (forward), MF (midfielder), DF (defender), or GK (goalkeeper). "
+             "Each position uses a different set of statistical pillars in the Scout Score.",
+    ),
+    "Age": st.column_config.TextColumn(
+        "AGE",
+        help="Player's age during the selected season, as reported by FBref.",
+    ),
+    "scout_score": st.column_config.NumberColumn(
+        "SCOUT SCORE",
+        format="%.1f",
+        help="0–100 performance score built from five position-specific statistical pillars "
+             "(Attacking, Progression, Creation, Defense, Retention). "
+             "Normalized within each league and position group — a score of 80 means the player "
+             "ranked in the top 20% of their position in that league. "
+             "Adjusted for team strength (defensive players only) and league quality.",
+    ),
+    "uv_score": st.column_config.NumberColumn(
+        "UV SCORE",
+        format="%.1f",
+        help="Undervaluation Score (0–100). Measures how much a player's current market value "
+             "lags behind what their Scout Score predicts. "
+             "Derived from an OLS regression of log(market value) on Scout Score and position. "
+             "100 = most undervalued relative to statistical output; 0 = most overpriced.",
+    ),
+    "uv_score_age_weighted": st.column_config.NumberColumn(
+        "AGE-WEIGHTED UV",
+        format="%.1f",
+        help="UV Score boosted for younger players to reflect future upside. "
+             "Players under 21 can receive up to a 1.5× multiplier; players 29 and over receive no boost. "
+             "The boost decays logarithmically between ages 21 and 29. "
+             "This is the primary sort column — it surfaces young undervalued players first.",
+    ),
+    "market_value_eur": st.column_config.NumberColumn(
+        "VALUE (€M)",
+        format="%.1f",
+        help="Current market value in millions of euros, sourced from Transfermarkt. "
+             "These are community-estimated valuations, not official transfer fees.",
+    ),
+    "value_gap_eur": st.column_config.NumberColumn(
+        "VALUE GAP (€M)",
+        format="%.1f",
+        help="Estimated gap between the player's fair value (predicted by the Scout Score regression) "
+             "and their actual Transfermarkt value, in €M. "
+             "Positive = undervalued by this amount. Negative = overpriced. "
+             "Treat as a directional signal, not a precise valuation.",
+    ),
 }
 
 # ── Inject CSS ─────────────────────────────────────────────────────────────────
@@ -994,117 +1044,212 @@ if df.empty:
         st.rerun()
     st.stop()
 
-# ── Main area header ───────────────────────────────────────────────────────────
+# ── Main area tabs ─────────────────────────────────────────────────────────────
 
-st.markdown(
-    "<div class='section-header' style='font-size:20px;padding:8px 16px;margin-bottom:24px;'>"
-    "MONEYBALL — SHORTLIST</div>",
-    unsafe_allow_html=True,
-)
+tab_shortlist, tab_methodology = st.tabs(["SHORTLIST", "METHODOLOGY"])
 
-# ── Shortlist table (DASH-01, DASH-02, DASH-03, DASH-04) ──────────────────────
-
-st.caption(f"Showing {len(display_df)} players")
-
-table_state = st.dataframe(
-    display_df,
-    on_select="rerun",
-    selection_mode="multi-row",
-    use_container_width=True,
-    hide_index=True,
-    column_config=COLUMN_CONFIG,
-)
-
-# ── Player selection resolution ────────────────────────────────────────────
-selected_rows = table_state["selection"]["rows"]
-if len(selected_rows) > 3:
-    st.warning("MAX 3 PLAYERS — Selection limited to first 3.")
-    selected_rows = cap_selection(selected_rows, max_n=3)
-
-# Session state override (similar-player click navigation — Phase 6 Plan 02)
-_ss_player = st.session_state.get("profile_player")
-if _ss_player:
-    _ss_club = st.session_state.get("profile_player_club", "")
-    _mask = full_df["Player"] == _ss_player
-    if _ss_club:
-        _mask = _mask & (full_df["Squad"] == _ss_club)
-    active_players = full_df[_mask].head(1)
-elif selected_rows:
-    active_players = df.iloc[selected_rows]
-else:
-    active_players = pd.DataFrame()
-
-# ── Profile section (PROFILE-01 through PROFILE-05) ──────────────────────
-if not active_players.empty:
-    # Stale-profile guard: if session state override is active but player is not
-    # in the current display_df (filtered out), show a notice and clear session state.
-    if st.session_state.get("profile_player"):
-        override_name = st.session_state["profile_player"]
-        if not display_df["Player"].str.contains(override_name, regex=False).any():
-            st.info(
-                f"**{override_name}** is not visible under the current filters. "
-                "Showing profile from full dataset."
-            )
-
-    # Single-player mode: render full profile
-    if len(active_players) == 1:
-        st.markdown(
-            "<div class='section-header' style='margin-top:24px;'>PLAYER PROFILE</div>",
-            unsafe_allow_html=True,
-        )
-        render_single_profile(active_players.iloc[0], full_df)
-
-    # Comparison mode (2–3 players selected)
-    else:
-        st.markdown(
-            "<div class='section-header' style='margin-top:24px;'>PLAYER PROFILE — COMPARISON</div>",
-            unsafe_allow_html=True,
-        )
-        render_comparison_profile(active_players, full_df)
-
-# ── UV scatter plot (DASH-06) ─────────────────────────────────────────────────
-
-st.markdown("<br>", unsafe_allow_html=True)
-st.markdown(
-    "<div class='section-header'>SCOUT SCORE vs MARKET VALUE</div>",
-    unsafe_allow_html=True,
-)
-# scatter_chart expects raw EUR market_value_eur — use filtered df (not display_df)
-_highlighted = active_players["Player"].tolist() if not active_players.empty else []
-
-# Y-axis max derived from data
-mv_max_m = max(int(np.ceil(full_df["market_value_eur"].max() / 1e7)) * 10, 200) if not full_df.empty else 200
-
-# Read x-range from session state (set on previous rerun)
-scout_x_range = st.session_state.get("scout_x_range", (0, 100))
-
-st.plotly_chart(
-    scatter_chart(df, highlighted_players=_highlighted, x_range=scout_x_range),
-    use_container_width=True,
-    config={
-        "scrollZoom": True,
-        "displayModeBar": True,
-        "modeBarButtonsToRemove": ["lasso2d", "select2d"],
-        "toImageButtonOptions": {"format": "png", "filename": "moneyball_scatter"},
-    },
-)
-# X-axis range slider — full width, sits directly below the chart
-st.markdown("<div style='margin-top:-14px;'>", unsafe_allow_html=True)
-st.slider(
-    "Scout Score Range",
-    min_value=0,
-    max_value=100,
-    value=scout_x_range,
-    step=1,
-    label_visibility="collapsed",
-    key="scout_x_range",
-)
-st.markdown("</div>", unsafe_allow_html=True)
-
-# DASH-07: cross-league disclaimer
-if should_show_disclaimer(sel_leagues):
-    st.caption(
-        "Scout scores are normalized per league. Cross-league comparison uses a league quality "
-        "multiplier (EPL 1.10× — Ligue 1 1.00×). Direct per-90 comparisons across leagues are "
-        "not equivalent."
+with tab_methodology:
+    st.markdown(
+        "<div class='section-header' style='font-size:20px;padding:8px 16px;margin-bottom:24px;'>"
+        "HOW IT WORKS</div>",
+        unsafe_allow_html=True,
     )
+
+    st.markdown("### Data Sources")
+    st.markdown("""
+| Source | What we use it for |
+|---|---|
+| **FBref** | Per-match and per-90 statistics for all players across the top 5 European leagues (EPL, La Liga, Bundesliga, Serie A, Ligue 1). Scraped via Playwright to handle Cloudflare protection. |
+| **Transfermarkt** | Market values for all players in €M. These are community-estimated valuations, not official transfer fees or club valuations. |
+| **football-data.co.uk** | League table standings, used to apply team strength adjustments to defensive players. |
+""")
+
+    st.markdown("### Data Limitations")
+    st.markdown("""
+- **Minimum 900 minutes:** Players with fewer than 900 minutes in a season are excluded. This filters out squad fillers and injury-hit players, but may exclude some legitimate rotation players.
+- **Stat availability:** FBref's 2025 data restructure removed several advanced metrics. The following are **not available** and therefore not in the model: expected goals (xG), expected assists (xA), progressive carries and passes, pressures, key passes, and aerial duel data.
+- **Market value accuracy:** Transfermarkt values are community-driven estimates. They lag reality for players who have recently broken out or declined.
+- **Season scope:** Data covers the 2023-24 and 2024-25 seasons. Mid-season 2025-26 data is excluded.
+- **Position classification:** FBref's primary position is used. Players who operate in hybrid or non-standard roles may be compared against an imperfect peer group.
+""")
+
+    st.markdown("### Scout Score")
+    st.markdown("""
+The Scout Score (0–100) is a composite performance rating built from **five statistical pillars**. Each position (FW, MF, DF, GK) uses a different weighting of the same five pillars, reflecting what matters most at each position.
+
+**The five pillars:**
+
+| Pillar | What it captures |
+|---|---|
+| **Attacking** | Goal threat and direct attacking output |
+| **Progression** | Ability to advance the ball and create shooting opportunities |
+| **Creation** | Chance creation and assist contribution |
+| **Defense** | Defensive actions: tackles, interceptions |
+| **Retention** | Ball retention under pressure |
+
+Each pillar is scored from underlying per-90 statistics (per 90 minutes played), so players are compared on rate — not volume — of output.
+
+**Normalization:** Scores are normalized using MinMax scaling **within each league and position group independently**. A Scout Score of 80 means the player ranked in the top 20% of their position in their league — not across all leagues. Cross-league comparison uses a league quality multiplier (see below).
+
+**Adjustments applied:**
+
+- **Team strength (defensive players only):** A ±10% adjustment is applied to defensive per-90 stats (tackles, interceptions) for defenders and goalkeepers based on their club's league table position. Playing for a bottom-half club inflates defensive volume; this corrects for that.
+- **League quality multiplier:** Scores are scaled by a UEFA club coefficient–based multiplier before cross-league comparison. The EPL receives the highest multiplier; Ligue 1 the lowest among the five leagues. A top defender in the EPL is weighted slightly higher than an equivalent defender in Ligue 1.
+""")
+
+    st.markdown("### UV Score (Undervaluation Score)")
+    st.markdown("""
+The UV Score (0–100) measures how much a player's market value lags behind what their on-pitch output suggests it should be.
+
+**How it's calculated:**
+1. An OLS regression is fit on the full player pool: `log₁₀(market value €M) ~ Scout Score + position`
+2. This produces a **predicted fair value** for each player
+3. The difference between actual and predicted value is the **residual** — negative = undervalued, positive = overpriced
+4. UV Score is the **percentile rank of the negative residual**: 100 = most undervalued, 0 = most overpriced
+
+Because the regression is fit on the full unfiltered pool, applying filters to the shortlist does not change any player's UV Score.
+""")
+
+    st.markdown("### Age-Weighted UV Score")
+    st.markdown("""
+The Age-Weighted UV Score is the primary sort column and the main ranking signal. It takes the UV Score and applies an upside multiplier for younger players.
+
+- Players **under 21** can receive up to a **1.5× multiplier** — reflecting that their market value has not yet priced in future development
+- The multiplier **decays logarithmically** from age 21 to 29
+- Players **29 and over** receive no boost (multiplier = 1.0×)
+
+This surfaces players who are both statistically undervalued *and* have significant development upside — the core target profile for smart recruitment.
+""")
+
+    st.markdown("### Value Gap")
+    st.markdown("""
+Value Gap (€M) is the raw difference between the player's **predicted fair value** (from the Scout Score regression) and their **actual Transfermarkt value**.
+
+- **Positive** = undervalued (market hasn't priced their output)
+- **Negative** = overpriced (market rates them above their statistical output)
+
+Value Gap is a directional signal for prioritizing conversations, not a precise transfer fee recommendation. Transfermarkt valuations and the regression both carry uncertainty.
+""")
+
+    st.markdown("### The Scatter Chart")
+    st.markdown("""
+The Scout Score vs Market Value scatter chart plots every player in the current filtered view. The diagonal line is the **fair value regression line** — players below it are statistically undervalued relative to the rest of the pool; players above are overpriced.
+
+Points are colored by position group. When players are selected from the shortlist, they are highlighted with distinct markers and labels on the chart.
+
+Use scroll to zoom and drag to pan within the chart.
+""")
+
+with tab_shortlist:
+    st.markdown(
+        "<div class='section-header' style='font-size:20px;padding:8px 16px;margin-bottom:24px;'>"
+        "MONEYBALL — SHORTLIST</div>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Shortlist table (DASH-01, DASH-02, DASH-03, DASH-04) ──────────────────────
+
+    st.caption(f"Showing {len(display_df)} players")
+
+    table_state = st.dataframe(
+        display_df,
+        on_select="rerun",
+        selection_mode="multi-row",
+        use_container_width=True,
+        hide_index=True,
+        column_config=COLUMN_CONFIG,
+    )
+
+    # ── Player selection resolution ────────────────────────────────────────────
+    selected_rows = table_state["selection"]["rows"]
+    if len(selected_rows) > 3:
+        st.warning("MAX 3 PLAYERS — Selection limited to first 3.")
+        selected_rows = cap_selection(selected_rows, max_n=3)
+
+    # Session state override (similar-player click navigation — Phase 6 Plan 02)
+    _ss_player = st.session_state.get("profile_player")
+    if _ss_player:
+        _ss_club = st.session_state.get("profile_player_club", "")
+        _mask = full_df["Player"] == _ss_player
+        if _ss_club:
+            _mask = _mask & (full_df["Squad"] == _ss_club)
+        active_players = full_df[_mask].head(1)
+    elif selected_rows:
+        active_players = df.iloc[selected_rows]
+    else:
+        active_players = pd.DataFrame()
+
+    # ── Profile section (PROFILE-01 through PROFILE-05) ──────────────────────
+    if not active_players.empty:
+        # Stale-profile guard: if session state override is active but player is not
+        # in the current display_df (filtered out), show a notice and clear session state.
+        if st.session_state.get("profile_player"):
+            override_name = st.session_state["profile_player"]
+            if not display_df["Player"].str.contains(override_name, regex=False).any():
+                st.info(
+                    f"**{override_name}** is not visible under the current filters. "
+                    "Showing profile from full dataset."
+                )
+
+        # Single-player mode: render full profile
+        if len(active_players) == 1:
+            st.markdown(
+                "<div class='section-header' style='margin-top:24px;'>PLAYER PROFILE</div>",
+                unsafe_allow_html=True,
+            )
+            render_single_profile(active_players.iloc[0], full_df)
+
+        # Comparison mode (2–3 players selected)
+        else:
+            st.markdown(
+                "<div class='section-header' style='margin-top:24px;'>PLAYER PROFILE — COMPARISON</div>",
+                unsafe_allow_html=True,
+            )
+            render_comparison_profile(active_players, full_df)
+
+    # ── UV scatter plot (DASH-06) ─────────────────────────────────────────────────
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='section-header'>SCOUT SCORE vs MARKET VALUE</div>",
+        unsafe_allow_html=True,
+    )
+    # scatter_chart expects raw EUR market_value_eur — use filtered df (not display_df)
+    _highlighted = active_players["Player"].tolist() if not active_players.empty else []
+
+    # Y-axis max derived from data
+    mv_max_m = max(int(np.ceil(full_df["market_value_eur"].max() / 1e7)) * 10, 200) if not full_df.empty else 200
+
+    # Read x-range from session state (set on previous rerun)
+    scout_x_range = st.session_state.get("scout_x_range", (0, 100))
+
+    st.plotly_chart(
+        scatter_chart(df, highlighted_players=_highlighted, x_range=scout_x_range),
+        use_container_width=True,
+        config={
+            "scrollZoom": True,
+            "displayModeBar": True,
+            "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+            "toImageButtonOptions": {"format": "png", "filename": "moneyball_scatter"},
+        },
+    )
+    # X-axis range slider — full width, sits directly below the chart
+    st.markdown("<div style='margin-top:-14px;'>", unsafe_allow_html=True)
+    st.slider(
+        "Scout Score Range",
+        min_value=0,
+        max_value=100,
+        value=scout_x_range,
+        step=1,
+        label_visibility="collapsed",
+        key="scout_x_range",
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # DASH-07: cross-league disclaimer
+    if should_show_disclaimer(sel_leagues):
+        st.caption(
+            "Scout scores are normalized per league. Cross-league comparison uses a league quality "
+            "multiplier (EPL 1.10× — Ligue 1 1.00×). Direct per-90 comparisons across leagues are "
+            "not equivalent."
+        )
