@@ -6,7 +6,12 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
+import os
+import glob
+import json
+from datetime import datetime
 from scorer import _parse_age
+from config import PILLARS_FW, PILLARS_MF, PILLARS_DF, GK_PILLARS
 
 st.set_page_config(
     page_title="Moneyball — Scouting Intelligence",
@@ -180,27 +185,197 @@ def prepare_display_df(df: pd.DataFrame) -> pd.DataFrame:
     return out.reset_index(drop=True)
 
 
+def get_cache_timestamp() -> str:
+    """Return a human-readable string of the most recent FBref cache file's mtime."""
+    cache_dir = os.path.join(os.path.dirname(__file__), "cache")
+    files = glob.glob(os.path.join(cache_dir, "fbref_*.csv"))
+    if not files:
+        return "No cache — run `python scraper.py`"
+    latest_mtime = max(os.path.getmtime(f) for f in files)
+    return datetime.fromtimestamp(latest_mtime).strftime("%-d %b %Y, %H:%M")
+
+
 def should_show_disclaimer(selected_leagues: list) -> bool:
     """Return True when more than one league is selected (DASH-07)."""
     return len(selected_leagues) > 1
 
 
+# ── Phase 6 pure helpers (exported for tests) ──────────────────────────────
+
+
+def filter_by_name(df: pd.DataFrame, query: str) -> pd.DataFrame:
+    """Case-insensitive partial match on Player column. Empty query returns df unchanged."""
+    if not query or not query.strip():
+        return df
+    return df[df["Player"].str.contains(query.strip(), case=False, na=False)]
+
+
+def cap_selection(rows: list, max_n: int = 3) -> list:
+    """Return rows truncated to max_n. Pure function — no Streamlit calls."""
+    return rows[:max_n]
+
+
+def get_profile_header(row: pd.Series) -> dict:
+    """Extract profile header fields from a player row. Returns dict with display-ready values."""
+    age_raw = row.get("Age", "—")
+    age_int = int(_parse_age(age_raw)) if pd.notna(_parse_age(age_raw)) else age_raw
+    mv_raw = row.get("market_value_eur", None)
+    mv_m = float(mv_raw) / 1e6 if pd.notna(mv_raw) and mv_raw else None
+    return {
+        "name": row.get("Player", "—"),
+        "age": age_int,
+        "club": row.get("Squad", "—"),
+        "league": row.get("League", "—"),
+        "position": row.get("Pos", "—"),
+        "nation": row.get("Nation", "—"),
+        "market_value_m": mv_m,
+    }
+
+
+_POS_PILLARS = {"FW": PILLARS_FW, "MF": PILLARS_MF, "DF": PILLARS_DF, "GK": GK_PILLARS}
+PILLAR_KEYS = ["attacking", "progression", "creation", "defense", "retention"]
+PILLAR_LABELS = ["Attacking", "Progression", "Creation", "Defense", "Retention"]
+SCORE_COLS = [
+    "score_attacking", "score_progression", "score_creation",
+    "score_defense", "score_retention",
+]
+COMPARISON_PALETTE = ["#00A8FF", "#FF5757", "#F5A623"]
+
+
+def build_radar_figure(
+    players_data: list,
+    peer_median: list,
+) -> "go.Figure":
+    """
+    Build a Scatterpolar radar chart.
+    players_data: list of {"name": str, "scores": [5 floats 0-100], "color": str}
+    peer_median:  list of 5 floats (median score_* normalized to 0-100 per pillar)
+    """
+    fig = go.Figure()
+    # Close polygon: repeat first element at end
+    med_r = peer_median + [peer_median[0]]
+    med_theta = PILLAR_LABELS + [PILLAR_LABELS[0]]
+    fig.add_trace(go.Scatterpolar(
+        r=med_r,
+        theta=med_theta,
+        fill="toself",
+        fillcolor="rgba(255,255,255,0.06)",
+        line=dict(color="rgba(255,255,255,0.3)", width=1, dash="dot"),
+        name="PEER MEDIAN",
+        hoverinfo="skip",
+    ))
+    for p in players_data:
+        scores = list(p["scores"])
+        color = p["color"]
+        r_rgb = int(color[1:3], 16)
+        g_rgb = int(color[3:5], 16)
+        b_rgb = int(color[5:7], 16)
+        fig.add_trace(go.Scatterpolar(
+            r=scores + [scores[0]],
+            theta=PILLAR_LABELS + [PILLAR_LABELS[0]],
+            fill="toself",
+            fillcolor=f"rgba({r_rgb},{g_rgb},{b_rgb},0.15)",
+            line=dict(color=color, width=2),
+            name=p["name"],
+        ))
+    radar_layout = {k: v for k, v in NAVY_LAYOUT.items() if k != "margin"}
+    fig.update_layout(
+        **radar_layout,
+        height=360,
+        margin=dict(t=32, b=32, l=32, r=32),
+        polar=dict(
+            bgcolor="#112236",
+            radialaxis=dict(
+                visible=True,
+                range=[0, 100],
+                gridcolor="rgba(255,255,255,0.1)",
+                tickfont=dict(color="#8DA4B8", size=9),
+            ),
+            angularaxis=dict(
+                gridcolor="rgba(255,255,255,0.1)",
+                tickfont=dict(color="#E8EDF2", size=11),
+            ),
+        ),
+        showlegend=True,
+        legend=dict(
+            bgcolor="#112236",
+            bordercolor="rgba(0,168,255,0.2)",
+            borderwidth=1,
+            font=dict(color="#E8EDF2"),
+        ),
+    )
+    return fig
+
+
+def compute_percentile(val: float, series: pd.Series) -> float:
+    """Return percentile rank (0–100) of val within series. Uses rank(pct=True, method='min')."""
+    if series.empty:
+        return 50.0
+    augmented = pd.concat([series, pd.Series([val])], ignore_index=True)
+    pct = augmented.rank(pct=True, method="min").iloc[-1] * 100.0
+    return float(pct)
+
+
+def parse_similar_players(row: pd.Series, full_df: pd.DataFrame) -> list:
+    """
+    Parse similar_players JSON string from player row.
+    Returns list of dicts: player, club, league, uv_score_age_weighted, age, market_value_m.
+    Age and market_value_m joined from full_df by player+club match.
+    Returns [] on any parse error.
+    """
+    raw = row.get("similar_players", "[]")
+    try:
+        peers = json.loads(raw)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return []
+    enriched = []
+    for p in peers:
+        match = full_df[
+            (full_df["Player"] == p.get("player", "")) &
+            (full_df["Squad"] == p.get("club", ""))
+        ]
+        if not match.empty:
+            age_val = _parse_age(match["Age"].iloc[0])
+            age_display = int(age_val) if pd.notna(age_val) else "—"
+            mv_raw = match["market_value_eur"].iloc[0]
+            mv_m = float(mv_raw) / 1e6 if pd.notna(mv_raw) else None
+        else:
+            age_display = "—"
+            mv_m = None
+        enriched.append({
+            "player": p.get("player", ""),
+            "club": p.get("club", ""),
+            "league": p.get("league", ""),
+            "uv_score_age_weighted": p.get("uv_score_age_weighted", 0.0),
+            "age": age_display,
+            "market_value_m": mv_m,
+        })
+    return enriched
+
+
 # ── Scatter chart ──────────────────────────────────────────────────────────────
 
 
-def scatter_chart(df: pd.DataFrame) -> go.Figure:
-    """UV scatter: x=scout_score, y=predicted_log_mv. OLS regression line."""
+def scatter_chart(df: pd.DataFrame, highlighted_players: list = None) -> go.Figure:
+    """
+    Scout Score vs Market Value scatter (log scale on Y).
+    X = scout_score, Y = market_value_eur (Plotly log axis).
+    OLS regression line = 'fair value' (fit in log10 space, converted back).
+    Points below the line: undervalued. Points above: overpriced.
+    """
     fig = go.Figure()
-    # Add a temporary market_value_eur_m column for hovertemplate
     df = df.copy()
-    df["_mv_m"] = df["market_value_eur"] / 1_000_000 if df["market_value_eur"].max() > 1000 else df["market_value_eur"]
+    df = df.dropna(subset=["scout_score", "market_value_eur"])
+    df = df[df["market_value_eur"] > 0]
+    df["_mv_m"] = df["market_value_eur"] / 1_000_000
+
     for pos, color in POS_COLORS.items():
         sub = df[df["Pos"] == pos]
         if sub.empty:
             continue
         fig.add_trace(go.Scatter(
             x=sub["scout_score"],
-            y=sub["predicted_log_mv"],
+            y=sub["market_value_eur"],
             mode="markers",
             name=pos,
             marker=dict(
@@ -220,33 +395,65 @@ def scatter_chart(df: pd.DataFrame) -> go.Figure:
             ),
             customdata=sub[["Player", "Squad", "Pos", "_mv_m", "uv_score"]].values,
         ))
-    # OLS regression line in log-space (x=scout_score, y=predicted_log_mv)
-    valid = df.dropna(subset=["scout_score", "predicted_log_mv"])
-    if len(valid) >= 2:
-        x_arr = valid["scout_score"].values
-        y_arr = valid["predicted_log_mv"].values
-        coeffs = np.polyfit(x_arr, y_arr, 1)
+
+    # Regression line: fit in log10 space (correct for multiplicative MV relationships),
+    # then convert predicted log10 values back to raw EUR for the log-scale axis.
+    if len(df) >= 2:
+        x_arr = df["scout_score"].values
+        y_log = np.log10(df["market_value_eur"].values)
+        coeffs = np.polyfit(x_arr, y_log, 1)
         x_range = np.linspace(x_arr.min(), x_arr.max(), 100)
+        y_line = 10 ** np.polyval(coeffs, x_range)
         fig.add_trace(go.Scatter(
             x=x_range,
-            y=np.polyval(coeffs, x_range),
+            y=y_line,
             mode="lines",
             name="FAIR VALUE LINE",
             line=dict(color="#00A8FF", width=1.5, dash="dot"),
         ))
+
+    if highlighted_players:
+        for i, name in enumerate(highlighted_players):
+            color = COMPARISON_PALETTE[i % len(COMPARISON_PALETTE)]
+            sub = df[df["Player"] == name]
+            if sub.empty:
+                continue
+            sub = sub.copy()
+            sub["_mv_m"] = sub["market_value_eur"] / 1_000_000
+            fig.add_trace(go.Scatter(
+                x=sub["scout_score"],
+                y=sub["market_value_eur"],
+                mode="markers+text",
+                name=name,
+                text=[name],
+                textposition="top center",
+                textfont=dict(color=color, size=10),
+                marker=dict(
+                    size=14,
+                    color=color,
+                    line=dict(width=2, color="#FFFFFF"),
+                ),
+                hovertemplate=(
+                    "<b>%{text}</b><br>Scout: %{x:.1f}<br>"
+                    "Value: €%{customdata:.1f}M<extra></extra>"
+                ),
+                customdata=sub["market_value_eur"].values / 1e6,
+            ))
+
     fig.update_layout(
         **NAVY_LAYOUT,
         height=480,
         xaxis=dict(
             title="SCOUT SCORE",
-            range=[0, 100],
             gridcolor="rgba(255,255,255,0.06)",
             linecolor="rgba(255,255,255,0.1)",
             title_font=dict(color="#8DA4B8", size=11),
             tickfont=dict(color="#8DA4B8"),
         ),
         yaxis=dict(
-            title="LOG\u2081\u2080 MARKET VALUE",
+            title="MARKET VALUE (LOG SCALE)",
+            type="log",
+            tickformat="$,.0f",
             gridcolor="rgba(255,255,255,0.06)",
             linecolor="rgba(255,255,255,0.1)",
             title_font=dict(color="#8DA4B8", size=11),
@@ -303,6 +510,13 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
     st.markdown("<br>", unsafe_allow_html=True)
+
+    # FILTER-07: Player name search
+    st.markdown("<div class='section-header'>PLAYER SEARCH</div>", unsafe_allow_html=True)
+    player_search = st.text_input(
+        "player_search", placeholder="Search by name...",
+        label_visibility="collapsed", key="player_search",
+    )
 
     # FILTER-01: League
     st.markdown("<div class='section-header'>LEAGUE</div>", unsafe_allow_html=True)
@@ -365,6 +579,7 @@ with st.sidebar:
     if st.button("Refresh Data"):
         st.cache_data.clear()
         st.rerun()
+    st.caption(f"Last refreshed: {get_cache_timestamp()}")
 
 # ── Apply filters ──────────────────────────────────────────────────────────────
 
@@ -378,13 +593,19 @@ df = apply_filters(
     seasons=sel_seasons,
 )
 
+display_df = prepare_display_df(df)
+
+# FILTER-07: apply name search on display_df (after existing 6 filters)
+if player_search and player_search.strip():
+    display_df = filter_by_name(display_df, player_search)
+
 # ── Empty state ────────────────────────────────────────────────────────────────
 
 if df.empty:
     st.warning("NO PLAYERS MATCH CURRENT FILTERS")
     st.caption("Try widening your age range, adding more leagues, or adjusting the market value limits.")
     if st.button("Reset Filters"):
-        for key in ["sel_leagues", "sel_positions", "age_range", "sel_clubs", "mv_range", "sel_seasons"]:
+        for key in ["sel_leagues", "sel_positions", "age_range", "sel_clubs", "mv_range", "sel_seasons", "player_search"]:
             if key in st.session_state:
                 del st.session_state[key]
         st.rerun()
@@ -400,45 +621,44 @@ st.markdown(
 
 # ── Shortlist table (DASH-01, DASH-02, DASH-03, DASH-04) ──────────────────────
 
-display_df = prepare_display_df(df)
 st.caption(f"Showing {len(display_df)} players")
 
 table_state = st.dataframe(
     display_df,
     on_select="rerun",
-    selection_mode="single-row",
+    selection_mode="multi-row",
     use_container_width=True,
     hide_index=True,
     column_config=COLUMN_CONFIG,
 )
 
-# ── Row-click placeholder panel (DASH-04) ─────────────────────────────────────
-
+# ── Player selection resolution ────────────────────────────────────────────
 selected_rows = table_state["selection"]["rows"]
-if selected_rows:
-    row_idx = selected_rows[0]
-    player = display_df.iloc[row_idx]
-    with st.container():
-        st.markdown(
-            "<div style='border:1px solid rgba(0,168,255,0.25);border-left:3px solid #00A8FF;"
-            "background:#112236;padding:16px;margin-top:16px;'>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(f"### Player Profile")
-        mv_display = f"€{player['market_value_eur']:.1f}M" if pd.notna(player.get('market_value_eur')) else "N/A"
-        raw_age = player.get('Age', '—')
-        age_display = int(_parse_age(raw_age)) if pd.notna(_parse_age(raw_age)) else raw_age
-        st.markdown(
-            f"**{player['Player']}** · {player.get('Squad','—')} · "
-            f"{player.get('League','—')} · {player.get('Pos','—')} · "
-            f"Age {age_display} · {mv_display}"
-        )
-        c1, c2, c3 = st.columns(3)
-        c1.metric("SCOUT SCORE", f"{player.get('scout_score', 0):.1f}")
-        c2.metric("UV SCORE", f"{player.get('uv_score', 0):.1f}")
-        c3.metric("AGE-WEIGHTED UV", f"{player.get('uv_score_age_weighted', 0):.1f}")
-        st.caption("Full profile coming soon")
-        st.markdown("</div>", unsafe_allow_html=True)
+if len(selected_rows) > 3:
+    st.warning("MAX 3 PLAYERS — Selection limited to first 3.")
+    selected_rows = cap_selection(selected_rows, max_n=3)
+
+# Session state override (similar-player click navigation — Phase 6 Plan 02)
+_ss_player = st.session_state.get("profile_player")
+if _ss_player:
+    _ss_club = st.session_state.get("profile_player_club", "")
+    _mask = full_df["Player"] == _ss_player
+    if _ss_club:
+        _mask = _mask & (full_df["Squad"] == _ss_club)
+    active_players = full_df[_mask].head(1)
+elif selected_rows:
+    active_players = df.iloc[selected_rows]
+else:
+    active_players = pd.DataFrame()
+
+# Profile section — full implementation in Plan 02
+if not active_players.empty:
+    st.markdown(
+        "<div class='section-header' style='margin-top:24px;'>PLAYER PROFILE</div>",
+        unsafe_allow_html=True,
+    )
+    names = active_players["Player"].tolist()
+    st.caption(f"Selected: {', '.join(names)}")
 
 # ── UV scatter plot (DASH-06) ─────────────────────────────────────────────────
 
@@ -448,7 +668,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 # scatter_chart expects raw EUR market_value_eur and predicted_log_mv — use filtered df (not display_df)
-st.plotly_chart(scatter_chart(df), use_container_width=True)
+_highlighted = active_players["Player"].tolist() if not active_players.empty else []
+st.plotly_chart(scatter_chart(df, highlighted_players=_highlighted), use_container_width=True)
 
 # DASH-07: cross-league disclaimer
 if should_show_disclaimer(sel_leagues):
