@@ -26,27 +26,47 @@ def make_scored_df(n=10, ages=None):
 
 # ── Config pillar column tests ────────────────────────────────────────────────
 
-def test_scorer_new_pillar_columns():
-    """PILLARS_FW.progression contains PrgC_p90 + DrbSucc%; PILLARS_MF.progression contains PrgP_p90 + SCA_p90."""
-    from config import PILLARS_FW, PILLARS_MF
-    fw_stats = set(PILLARS_FW["progression"]["stats"].keys())
-    mf_stats = set(PILLARS_MF["progression"]["stats"].keys())
-    assert "PrgC_p90" in fw_stats, f"FW progression missing PrgC_p90, got {fw_stats}"
-    assert "DrbSucc%" in fw_stats, f"FW progression missing DrbSucc%, got {fw_stats}"
-    assert "xGBuildup_p90" not in fw_stats, "FW progression still has old xGBuildup_p90"
-    assert "PrgP_p90" in mf_stats, f"MF progression missing PrgP_p90, got {mf_stats}"
-    assert "SCA_p90" in mf_stats, f"MF progression missing SCA_p90, got {mf_stats}"
-    assert "xGChain_p90" not in mf_stats, "MF progression still has old xGChain_p90"
+def test_scorer_pillar_columns_post_lit_migration():
+    """Post-FBref Lit migration: pillars use only available stats; deprecated columns absent."""
+    from config import PILLARS_FW, PILLARS_MF, _CREATION, _DEFENSE, _RETENTION
+
+    fw_prog = set(PILLARS_FW["progression"]["stats"].keys())
+    mf_prog = set(PILLARS_MF["progression"]["stats"].keys())
+
+    # FW progression: shots + fouls drawn (PrgC_p90/DrbSucc% removed — FBref Lit)
+    assert "Sh_p90" in fw_prog, f"FW progression missing Sh_p90, got {fw_prog}"
+    assert "Fld_p90" in fw_prog, f"FW progression missing Fld_p90, got {fw_prog}"
+    assert "PrgC_p90" not in fw_prog, "FW progression still has PrgC_p90 (removed — FBref Lit)"
+    assert "DrbSucc%" not in fw_prog, "FW progression still has DrbSucc% (removed — FBref Lit)"
+
+    # MF progression: crosses + fouls drawn (PrgP_p90/SCA_p90 removed — FBref Lit)
+    assert "Crs_p90" in mf_prog, f"MF progression missing Crs_p90, got {mf_prog}"
+    assert "PrgP_p90" not in mf_prog, "MF progression still has PrgP_p90 (removed — FBref Lit)"
+
+    # Creation: assists + crosses (KP_p90/xA_p90 removed)
+    creation_stats = set(_CREATION["stats"].keys())
+    assert "Ast_p90" in creation_stats, "Creation pillar missing Ast_p90"
+    assert "xA_p90" not in creation_stats, "Creation pillar still has xA_p90 (removed)"
+
+    # Defense: Int + TklW (Blocks/DuelsWon removed)
+    defense_stats = set(_DEFENSE["stats"].keys())
+    assert "Int_p90" in defense_stats, "Defense pillar missing Int_p90"
+    assert "TklW_p90" in defense_stats, "Defense pillar missing TklW_p90"
+    assert "Blocks_p90" not in defense_stats, "Defense pillar still has Blocks_p90 (removed)"
+
+    # Retention: fouls drawn (Cmp%/DuelsWon% removed)
+    retention_stats = set(_RETENTION["stats"].keys())
+    assert "Fld_p90" in retention_stats, "Retention pillar missing Fld_p90"
+    assert "Cmp%" not in retention_stats, "Retention pillar still has Cmp% (removed)"
 
 
 def test_gk_shot_stopping_pillar():
-    """GK_PILLARS.attacking contains Save% (0.60) and PSxG/SoT (0.40); does NOT contain SavePct."""
+    """GK_PILLARS.attacking uses Save% (1.0) only — PSxG/SoT removed in FBref Lit migration."""
     from config import GK_PILLARS
     stats = GK_PILLARS["attacking"]["stats"]
     assert "Save%" in stats, f"GK attacking missing Save%, got {stats}"
-    assert "PSxG/SoT" in stats, f"GK attacking missing PSxG/SoT, got {stats}"
-    assert abs(stats["Save%"] - 0.60) < 1e-6, f"Save% weight should be 0.60, got {stats['Save%']}"
-    assert abs(stats["PSxG/SoT"] - 0.40) < 1e-6, f"PSxG/SoT weight should be 0.40, got {stats['PSxG/SoT']}"
+    assert abs(stats["Save%"] - 1.00) < 1e-6, f"Save% weight should be 1.00, got {stats['Save%']}"
+    assert "PSxG/SoT" not in stats, "GK attacking still has PSxG/SoT (removed — FBref Lit)"
     assert "SavePct" not in stats, "GK attacking still has old SavePct"
 
 
@@ -156,27 +176,20 @@ def test_per_league_normalization_isolation():
     """
     from scorer import compute_scout_scores
 
-    # League A: 3 forwards with high absolute stats
+    # League A: 3 forwards with high absolute stats (post-FBref Lit migration columns)
     league_a = pd.DataFrame({
         "Player":    ["A1", "A2", "A3"],
         "Pos":       ["FW", "FW", "FW"],
         "League":    ["LeagueA", "LeagueA", "LeagueA"],
         "Age":       ["25-100", "26-100", "27-100"],
-        # FW pillar stat columns (per-90s, rate stats)
-        "xG_p90":    [0.90, 0.50, 0.20],
         "Gls_p90":   [0.80, 0.40, 0.15],
         "Ast_p90":   [0.30, 0.20, 0.10],
         "SoT_p90":   [3.50, 2.00, 0.80],
-        "PrgC_p90":  [8.00, 5.00, 2.00],
-        "DrbSucc%":  [70.0, 50.0, 30.0],
-        "xA_p90":    [0.30, 0.20, 0.10],
-        "KP_p90":    [3.00, 2.00, 1.00],
-        "Tkl_p90":   [1.00, 0.80, 0.50],
+        "Sh_p90":    [4.00, 2.50, 1.00],
+        "Fld_p90":   [2.50, 1.50, 0.60],
+        "Crs_p90":   [1.00, 0.60, 0.20],
         "Int_p90":   [0.50, 0.40, 0.20],
-        "Blocks_p90":[0.30, 0.20, 0.10],
-        "DuelsWon_p90": [3.00, 2.00, 1.00],
-        "Cmp%":      [80.0, 75.0, 70.0],
-        "DuelsWon%": [60.0, 55.0, 50.0],
+        "TklW_p90":  [1.00, 0.80, 0.50],
     })
 
     # League B: 3 forwards with much lower absolute stats (e.g. weaker league)
@@ -185,20 +198,14 @@ def test_per_league_normalization_isolation():
         "Pos":       ["FW", "FW", "FW"],
         "League":    ["LeagueB", "LeagueB", "LeagueB"],
         "Age":       ["25-100", "26-100", "27-100"],
-        "xG_p90":    [0.35, 0.20, 0.05],
         "Gls_p90":   [0.30, 0.15, 0.05],
         "Ast_p90":   [0.15, 0.08, 0.03],
         "SoT_p90":   [1.50, 0.80, 0.30],
-        "PrgC_p90":  [3.00, 1.80, 0.60],
-        "DrbSucc%":  [50.0, 35.0, 20.0],
-        "xA_p90":    [0.15, 0.08, 0.03],
-        "KP_p90":    [1.20, 0.80, 0.30],
-        "Tkl_p90":   [0.50, 0.30, 0.15],
+        "Sh_p90":    [1.80, 1.00, 0.40],
+        "Fld_p90":   [1.20, 0.70, 0.25],
+        "Crs_p90":   [0.40, 0.25, 0.08],
         "Int_p90":   [0.25, 0.15, 0.08],
-        "Blocks_p90":[0.15, 0.08, 0.03],
-        "DuelsWon_p90": [1.50, 0.90, 0.40],
-        "Cmp%":      [72.0, 68.0, 62.0],
-        "DuelsWon%": [55.0, 48.0, 42.0],
+        "TklW_p90":  [0.50, 0.30, 0.15],
     })
 
     combined = pd.concat([league_a, league_b], ignore_index=True)
@@ -289,16 +296,17 @@ def test_league_column_preserved_through_pipeline():
             "Min":    [1500] * n,
             "Gls":    [5] * n,
             "Ast":    [3] * n,
-            "xG":     [4.5] * n,
-            "xA":     [2.5] * n,
-            "npxG":   [4.0] * n,
             "SoT":    [15] * n,
-            "PrgP":   [60] * n,
-            "PrgC":   [25] * n,
-            "SCA":    [40] * n,
             "KP":     [20] * n,
             "Cmp":    [700] * n,
             "Att":    [850] * n,
+        })
+        gca = pd.DataFrame({
+            "Player": players,
+            "Squad":  [squad] * n,
+            "Pos":    ["FW"] * n,
+            "Age":    ["25-100"] * n,
+            "SCA":    [40] * n,
         })
         possession = pd.DataFrame({
             "Player": players,
@@ -307,15 +315,6 @@ def test_league_column_preserved_through_pipeline():
             "Age":    ["25-100"] * n,
             "Att":    [12] * n,
             "Succ":   [8] * n,
-            "PrgC":   [25] * n,
-        })
-        misc = pd.DataFrame({
-            "Player": players,
-            "Squad":  [squad] * n,
-            "Pos":    ["FW"] * n,
-            "Age":    ["25-100"] * n,
-            "Won":    [25] * n,
-            "Lost":   [8] * n,
         })
         defense = pd.DataFrame({
             "Player": players,
@@ -328,8 +327,8 @@ def test_league_column_preserved_through_pipeline():
         })
         return {
             "stats_standard": standard,
+            "stats_gca": gca,
             "stats_possession": possession,
-            "stats_misc": misc,
             "stats_defense": defense,
         }
 
@@ -382,15 +381,13 @@ def test_team_strength_bottom_half_inflates_df_score():
         "Tkl_p90":         [1.0, 1.0],
         "Int_p90":         [1.0, 1.0],
         "Blocks_p90":      [1.0, 1.0],
-        "DuelsWon_p90":    [1.0, 1.0],
-        "Pres_p90":        [1.0, 1.0],
     })
 
     result = apply_team_strength_adjustment(df)
     bottom = result[result["Player"] == "BottomDF"].iloc[0]
     top    = result[result["Player"] == "TopDF"].iloc[0]
 
-    for stat in ["Tkl_p90", "Int_p90", "Blocks_p90", "DuelsWon_p90", "Pres_p90"]:
+    for stat in ["Tkl_p90", "Int_p90", "Blocks_p90"]:
         assert abs(bottom[stat] - 1.10) < 1e-9, (
             f"Bottom-half DF {stat}: expected 1.10, got {bottom[stat]}"
         )
@@ -400,7 +397,7 @@ def test_team_strength_bottom_half_inflates_df_score():
 
 
 def test_team_strength_does_not_affect_fw_attacking():
-    """FW xG_p90, Gls_p90, Ast_p90, SoT_p90 must be unchanged by team strength step."""
+    """FW Gls_p90, Ast_p90, SoT_p90 must be unchanged by team strength step."""
     from scorer import apply_team_strength_adjustment
 
     df = pd.DataFrame({
@@ -408,7 +405,6 @@ def test_team_strength_does_not_affect_fw_attacking():
         "Pos":             ["FW"],
         "League":          ["EPL"],
         "league_position": [15.0],
-        "xG_p90":          [0.5],
         "Gls_p90":         [0.3],
         "Ast_p90":         [0.2],
         "SoT_p90":         [1.0],
@@ -417,7 +413,6 @@ def test_team_strength_does_not_affect_fw_attacking():
     result = apply_team_strength_adjustment(df)
     fw = result.iloc[0]
 
-    assert abs(fw["xG_p90"]  - 0.5) < 1e-9, f"xG_p90 changed: {fw['xG_p90']}"
     assert abs(fw["Gls_p90"] - 0.3) < 1e-9, f"Gls_p90 changed: {fw['Gls_p90']}"
     assert abs(fw["Ast_p90"] - 0.2) < 1e-9, f"Ast_p90 changed: {fw['Ast_p90']}"
     assert abs(fw["SoT_p90"] - 1.0) < 1e-9, f"SoT_p90 changed: {fw['SoT_p90']}"
@@ -610,3 +605,29 @@ def test_similar_players_cross_league():
         "No player has similar players from multiple leagues — "
         "cross-league similarity is required (SCORE-08)"
     )
+
+
+# ── Wave 0: Pillar weight integrity (Phase 06.1) ──────────────────────────────
+
+def test_fw_pillar_weights_sum():
+    """All FW pillar stat weight dicts sum to 1.0 (required for scout_score ≈ 100 max)."""
+    from config import PILLARS_FW
+    for pillar_name, pillar in PILLARS_FW.items():
+        stat_weights = pillar["stats"]
+        total = sum(stat_weights.values())
+        assert abs(total - 1.0) < 1e-9, (
+            f"PILLARS_FW['{pillar_name}']['stats'] weights sum to {total:.6f}, not 1.0. "
+            f"Stats: {stat_weights}"
+        )
+
+
+def test_mf_pillar_weights_sum():
+    """All MF pillar stat weight dicts sum to 1.0 (required for scout_score ≈ 100 max)."""
+    from config import PILLARS_MF
+    for pillar_name, pillar in PILLARS_MF.items():
+        stat_weights = pillar["stats"]
+        total = sum(stat_weights.values())
+        assert abs(total - 1.0) < 1e-9, (
+            f"PILLARS_MF['{pillar_name}']['stats'] weights sum to {total:.6f}, not 1.0. "
+            f"Stats: {stat_weights}"
+        )
