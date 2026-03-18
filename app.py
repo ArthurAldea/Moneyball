@@ -526,6 +526,193 @@ def render_single_profile(player_row: pd.Series, full_df: pd.DataFrame) -> None:
                     st.rerun()
 
 
+def render_comparison_profile(active_players: pd.DataFrame, full_df: pd.DataFrame) -> None:
+    """
+    Render multi-player comparison profile (2-3 players).
+    Layout: mini header cards (side-by-side) → [radar | stat table] → stacked similar players.
+    One polygon per player on radar, one column per player in stat table.
+    Peer median computed using the first player's position as reference group.
+    """
+    n = len(active_players)
+    palette = COMPARISON_PALETTE  # ["#00A8FF","#FF5757","#F5A623"]
+
+    # ── Mini header cards (PROFILE-06) ────────────────────────────────────
+    header_cols = st.columns(n)
+    for i, (_, row) in enumerate(active_players.iterrows()):
+        hdr = get_profile_header(row)
+        color = palette[i % len(palette)]
+        mv_str = f"€{hdr['market_value_m']:.1f}M" if hdr["market_value_m"] is not None else "N/A"
+        with header_cols[i]:
+            st.markdown(
+                f"<div style='background:#112236;border:1px solid rgba(0,168,255,0.2);"
+                f"border-left:3px solid {color};"
+                f"border-radius:4px;padding:10px 14px;margin-bottom:8px;'>"
+                f"<div style='font-weight:600;color:#E8EDF2;font-size:14px;'>{hdr['name']}</div>"
+                f"<div style='color:#8DA4B8;font-size:11px;margin-top:2px;'>"
+                f"{hdr['club']} · {hdr['league']}</div>"
+                f"<div style='color:#8DA4B8;font-size:11px;'>"
+                f"{hdr['position']} · Age {hdr['age']} · {hdr['nation']} · {mv_str}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+    # ── Two-column layout: radar (40%) | comparison stat table (60%) ──────
+    col_radar, col_stats = st.columns([0.4, 0.6])
+
+    with col_radar:
+        # PROFILE-06 Radar: one polygon per player + PEER MEDIAN
+        # Use first player's position as the peer reference group for median.
+        ref_pos = active_players.iloc[0].get("Pos", "MF")
+        ref_pillars_cfg = _POS_PILLARS.get(ref_pos, PILLARS_MF)
+        peer_pool = full_df[full_df["Pos"] == ref_pos]
+
+        # Compute peer median (normalized to 0-100)
+        peer_medians = []
+        for key in PILLAR_KEYS:
+            weight = ref_pillars_cfg.get(key, {}).get("weight", 1)
+            col = f"score_{key}"
+            if col in peer_pool.columns and weight > 0:
+                raw_vals = peer_pool[col].dropna()
+                med = float((raw_vals / (weight / 100.0)).median()) if not raw_vals.empty else 0.0
+                peer_medians.append(min(100.0, max(0.0, med)))
+            else:
+                peer_medians.append(0.0)
+
+        # Build players_data list
+        players_data = []
+        for i, (_, row) in enumerate(active_players.iterrows()):
+            pos = row.get("Pos", "MF")
+            pillars_cfg = _POS_PILLARS.get(pos, PILLARS_MF)
+            color = palette[i % len(palette)]
+            scores = []
+            for key in PILLAR_KEYS:
+                raw = float(row.get(f"score_{key}", 0) or 0)
+                weight = pillars_cfg.get(key, {}).get("weight", 1)
+                normalized = (raw / (weight / 100.0)) if weight > 0 else 0.0
+                scores.append(min(100.0, max(0.0, normalized)))
+            players_data.append({
+                "name": row.get("Player", f"Player {i+1}"),
+                "scores": scores,
+                "color": color,
+            })
+
+        radar_fig = build_radar_figure(players_data, peer_medians)
+        st.plotly_chart(radar_fig, use_container_width=True)
+
+    with col_stats:
+        # PROFILE-06 Stat table: rows = stats (pillar-grouped), columns = players
+        # Header row: stat name | Player1 value + bar | Player2 value + bar | ...
+        player_names = [row.get("Player", f"P{i+1}") for _, row in active_players.iterrows()]
+
+        # Use the union of stat keys across all players' pillar configs
+        # (keep pillar order from first player's position)
+        ref_pos = active_players.iloc[0].get("Pos", "MF")
+        ref_pillars_cfg = _POS_PILLARS.get(ref_pos, PILLARS_MF)
+
+        # Build table header
+        name_header_cells = "".join(
+            f"<th style='text-align:center;color:{palette[i % len(palette)]};"
+            f"padding:4px 6px;border-bottom:1px solid rgba(255,255,255,0.1);"
+            f"white-space:nowrap;font-size:11px;'>{pname}</th>"
+            for i, pname in enumerate(player_names)
+        )
+        html_parts = [
+            "<table style='width:100%;border-collapse:collapse;font-size:11px;'>",
+            "<thead><tr>",
+            "<th style='text-align:left;color:#8DA4B8;padding:4px 8px;"
+            "border-bottom:1px solid rgba(255,255,255,0.1);'>STAT</th>",
+            name_header_cells,
+            "</tr></thead><tbody>",
+        ]
+
+        for key in PILLAR_KEYS:
+            pillar = ref_pillars_cfg.get(key, {})
+            pillar_label = pillar.get("label", key.capitalize())
+            stat_keys = list(pillar.get("stats", {}).keys())
+
+            # Pillar group header row
+            html_parts.append(
+                f"<tr><td colspan='{1 + n}' style='padding:8px 8px 2px 8px;"
+                f"color:#00A8FF;font-weight:600;font-size:11px;"
+                f"letter-spacing:0.1em;text-transform:uppercase;'>"
+                f"{pillar_label}</td></tr>"
+            )
+
+            seen = set()
+            for stat_col in stat_keys:
+                if stat_col in seen:
+                    continue
+                seen.add(stat_col)
+
+                stat_display = stat_col.replace("_p90", "/90").replace("_", " ")
+                row_cells = [
+                    f"<td style='padding:3px 8px;color:#E8EDF2;white-space:nowrap;'>{stat_display}</td>"
+                ]
+
+                for i, (_, row) in enumerate(active_players.iterrows()):
+                    if stat_col not in row.index or pd.isna(row.get(stat_col)):
+                        row_cells.append("<td style='padding:3px 6px;text-align:center;color:#8DA4B8;'>—</td>")
+                        continue
+                    val = float(row.get(stat_col))
+                    pos = row.get("Pos", "MF")
+                    peer_series = full_df[full_df["Pos"] == pos][stat_col].dropna() if stat_col in full_df.columns else pd.Series(dtype=float)
+                    pct = compute_percentile(val, peer_series) if not peer_series.empty else 50.0
+                    bar = _pct_bar_html(pct)
+                    row_cells.append(
+                        f"<td style='padding:3px 6px;'>"
+                        f"<div style='font-variant-numeric:tabular-nums;text-align:right;"
+                        f"color:#E8EDF2;font-size:11px;'>{val:.2f}</div>"
+                        f"{bar}</td>"
+                    )
+
+                html_parts.append(
+                    f"<tr style='border-bottom:1px solid rgba(255,255,255,0.04);'>"
+                    + "".join(row_cells)
+                    + "</tr>"
+                )
+
+        html_parts.append("</tbody></table>")
+        st.markdown("".join(html_parts), unsafe_allow_html=True)
+
+    # ── Stacked similar players (PROFILE-06) ──────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    for i, (_, row) in enumerate(active_players.iterrows()):
+        player_name = row.get("Player", f"Player {i+1}")
+        color = palette[i % len(palette)]
+        st.markdown(
+            f"<div class='section-header' style='border-left-color:{color};'>"
+            f"SIMILAR TO {player_name.upper()}</div>",
+            unsafe_allow_html=True,
+        )
+        similar = parse_similar_players(row, full_df)
+        if similar:
+            n_cols = min(len(similar), 5)
+            sim_cols = st.columns(n_cols)
+            for j, sp in enumerate(similar[:5]):
+                mv_str = f"€{sp['market_value_m']:.1f}M" if sp.get("market_value_m") is not None else "N/A"
+                uv_str = f"{sp['uv_score_age_weighted']:.1f}" if sp.get("uv_score_age_weighted") else "—"
+                with sim_cols[j]:
+                    st.markdown(
+                        f"<div style='background:#112236;border:1px solid rgba(0,168,255,0.2);"
+                        f"border-radius:4px;padding:8px;font-size:11px;text-align:center;'>"
+                        f"<div style='font-weight:600;color:#E8EDF2;'>{sp['player']}</div>"
+                        f"<div style='color:#8DA4B8;'>{sp['club']} · {sp['league']}</div>"
+                        f"<div style='color:#8DA4B8;'>Age {sp['age']} · {mv_str}</div>"
+                        f"<div style='color:#00A8FF;'>UV {uv_str}</div>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+                    if st.button(
+                        "View Profile",
+                        key=f"cmp_sim_{player_name}_{sp['player']}_{sp['club']}_{j}",
+                    ):
+                        st.session_state["profile_player"] = sp["player"]
+                        st.session_state["profile_player_club"] = sp["club"]
+                        st.rerun()
+        else:
+            st.caption("No similar players data available.")
+
+
 # ── Scatter chart ──────────────────────────────────────────────────────────────
 
 
