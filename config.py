@@ -36,6 +36,17 @@ FBREF_TABLES = [
 # Seasons to scrape in Phase 1 — 2023-24 and 2024-25 only (2025-26 is mid-season, incomplete)
 FBREF_SEASONS = ["2023-24", "2024-25"]
 
+# ── Understat league name mapping (Phase 06.1) ────────────────────────────────
+# Maps project league keys to Understat internal slug names used by get_league_players().
+# Source: understat library utils.py to_league_name() + URL pattern inspection.
+UNDERSTAT_LEAGUE_NAMES = {
+    "EPL":        "EPL",
+    "LaLiga":     "La_liga",
+    "Bundesliga": "Bundesliga",
+    "SerieA":     "Serie_A",
+    "Ligue1":     "Ligue_1",
+}
+
 # Rate limiting (DATA-06)
 FBREF_RATE_MIN = 3.5   # seconds — minimum delay between requests
 FBREF_RATE_MAX = 6.0   # seconds — maximum delay between requests
@@ -146,28 +157,37 @@ FUZZY_THRESHOLD = 80
 FUZZY_THRESHOLD_PASS3 = 70
 
 # ── Outfield Scout Score Pillars (position-specific) ──────────────────────────
-# Weights reflect each position's primary responsibilities.
-# Creation pillar: Ast_p90 removed (was double-counted from Attacking pillar).
-# Progression for FW/DF: uses PrgC_p90 (progressive carries) + DrbSucc% (dribble success rate).
-# Progression for MF: uses PrgP_p90 (progressive passes) + SCA_p90 (shot-creating actions).
+# Post-FBref Lit migration (2025): only basic stats remain in public FBref tables.
+# Available outfield stats: Gls, Ast, SoT, Sh (shooting); Int, TklW (defense);
+#   Fls, Fld, Crs (misc). All advanced stats (xG, xA, KP, SCA, PrgC/P, Blocks,
+#   Pres, aerial duels, pass completion) are no longer served by FBref.
+#
+# Pillar mapping with available stats:
+#   Attacking:   Gls_p90 + SoT_p90 + Ast_p90   (goal output + shot threat)
+#   Progression: Sh_p90  + Fld_p90               (shot volume + fouls drawn)
+#   Creation:    Ast_p90 + Crs_p90               (assists + crosses)
+#   Defense:     Int_p90 + TklW_p90              (interceptions + tackles won)
+#   Retention:   Fld_p90                         (winning free-kicks = composure proxy)
+#
+# Weights sum to 1.0 per pillar so max scout score ≈ 100 for the best player.
 
 _CREATION = {
     "weight": 20,
     "label": "Creation",
     "color": "#00cfff",
-    "stats": {"xA_p90": 0.55, "KP_p90": 0.45},
+    "stats": {"Ast_p90": 0.60, "Crs_p90": 0.40},
 }
 _DEFENSE = {
     "weight": 15,
     "label": "Defense",
     "color": "#f5a623",
-    "stats": {"Tkl_p90": 0.35, "Int_p90": 0.30, "Blocks_p90": 0.20, "DuelsWon_p90": 0.15},
+    "stats": {"Int_p90": 0.55, "TklW_p90": 0.45},
 }
 _RETENTION = {
     "weight": 10,
     "label": "Retention",
     "color": "#c084fc",
-    "stats": {"Cmp%": 0.60, "DuelsWon%": 0.40},
+    "stats": {"Fld_p90": 1.00},
 }
 
 PILLARS_FW = {
@@ -175,17 +195,17 @@ PILLARS_FW = {
         "weight": 45,
         "label": "Attacking",
         "color": "#ff3131",
-        "stats": {"xG_p90": 0.40, "Gls_p90": 0.35, "Ast_p90": 0.15, "SoT_p90": 0.10},
+        "stats": {"Gls_p90": 0.55, "SoT_p90": 0.30, "Ast_p90": 0.15},
     },
     "progression": {
         "weight": 20,
         "label": "Progression",
         "color": "#00ff41",
-        "stats": {"PrgC_p90": 0.55, "DrbSucc%": 0.45},
+        "stats": {"Sh_p90": 0.65, "Fld_p90": 0.35},
     },
-    "creation": {**_CREATION, "weight": 20},
-    "defense":   {**_DEFENSE,   "weight":  5},
-    "retention": {**_RETENTION, "weight": 10},
+    "creation":   {**_CREATION, "weight": 20},
+    "defense":    {**_DEFENSE,  "weight":  5},
+    "retention":  {**_RETENTION, "weight": 10},
 }
 
 PILLARS_MF = {
@@ -193,17 +213,17 @@ PILLARS_MF = {
         "weight": 20,
         "label": "Attacking",
         "color": "#ff3131",
-        "stats": {"xG_p90": 0.40, "Gls_p90": 0.30, "Ast_p90": 0.20, "SoT_p90": 0.10},
+        "stats": {"Gls_p90": 0.45, "Ast_p90": 0.35, "SoT_p90": 0.20},
     },
     "progression": {
         "weight": 30,
         "label": "Progression",
         "color": "#00ff41",
-        "stats": {"PrgP_p90": 0.60, "SCA_p90": 0.40},
+        "stats": {"Crs_p90": 0.55, "Fld_p90": 0.45},
     },
-    "creation": {**_CREATION, "weight": 25},
-    "defense":   {**_DEFENSE,   "weight": 15},
-    "retention": {**_RETENTION, "weight": 10},
+    "creation":   {**_CREATION, "weight": 25},
+    "defense":    {**_DEFENSE,  "weight": 15},
+    "retention":  {**_RETENTION, "weight": 10},
 }
 
 PILLARS_DF = {
@@ -211,93 +231,83 @@ PILLARS_DF = {
         "weight": 10,
         "label": "Attacking",
         "color": "#ff3131",
-        "stats": {"xG_p90": 0.40, "Gls_p90": 0.30, "Ast_p90": 0.20, "SoT_p90": 0.10},
+        "stats": {"Gls_p90": 0.40, "Ast_p90": 0.35, "SoT_p90": 0.25},
     },
     "progression": {
         "weight": 15,
         "label": "Progression",
         "color": "#00ff41",
-        "stats": {"PrgC_p90": 0.55, "DrbSucc%": 0.45},
+        "stats": {"Crs_p90": 1.00},
     },
-    "creation": {**_CREATION, "weight": 10},
+    "creation":   {**_CREATION, "weight": 10},
     "defense": {
         "weight": 45,
         "label": "Defense",
         "color": "#f5a623",
-        "stats": {
-            "Tkl_p90": 0.30,
-            "Int_p90": 0.25,
-            "Blocks_p90": 0.20,
-            "DuelsWon_p90": 0.15,
-            "Pres_p90": 0.10,
-        },
+        "stats": {"Int_p90": 0.55, "TklW_p90": 0.45},
     },
-    "retention": {**_RETENTION, "weight": 20},
+    "retention":  {**_RETENTION, "weight": 20},
 }
 
 # Legacy alias — kept so any external code referencing PILLARS still works
 PILLARS = PILLARS_MF
 
 # ── GK Scout Score Pillars ────────────────────────────────────────────────────
-# Mapped to same 5 slots so the UI (radar, stacked bar) works without changes.
+# Post-Lit migration: keeper tables retain Save%, Saves, SoTA, CS%.
+# PSxG/SoT, Cmp%, aerial, and sweeping stats are gone.
+# GK scoring uses Save% (quality) + CS% (outcomes) + Saves_p90 (volume).
 GK_PILLARS = {
-    "attacking": {          # → Shot Stopping
-        "weight": 50,
+    # Post-Lit migration: only Save% and Saves raw count survive in keeper table.
+    # PSxG/SoT, Cmp%, CS%, aerial, and sweeping stats are gone.
+    "attacking": {          # → Shot Stopping (quality)
+        "weight": 70,
         "label": "Shot Stopping",
         "color": "#ff3131",
-        # Save% = saves / shots on target against — volume-adjusted save rate.
-        # PSxG/SoT = post-shot xG per shot on target — rewards stopping harder shots.
-        "stats": {"Save%": 0.60, "PSxG/SoT": 0.40},
+        "stats": {"Save%": 1.00},
     },
-    "progression": {        # → Distribution
+    "progression": {        # → Workload (volume of saves)
         "weight": 20,
-        "label": "Distribution",
+        "label": "Workload",
         "color": "#00ff41",
-        "stats": {"Cmp%": 0.65, "DuelsWon%": 0.35},
+        "stats": {"Saves_p90": 1.00},
     },
-    "creation": {           # → Aerial Command
-        "weight": 15,
+    "creation": {           # → Aerial / Command (proxied by Int_p90)
+        "weight": 5,
         "label": "Aerial Command",
         "color": "#00cfff",
-        "stats": {"DuelsWon_p90": 0.65, "DuelsWon%": 0.35},
+        "stats": {"Int_p90": 1.00},
     },
-    "defense": {            # → Sweeping / Blocking
-        "weight": 10,
+    "defense": {            # → Sweeping / Contribution
+        "weight": 3,
         "label": "Sweeping",
         "color": "#f5a623",
-        "stats": {"Blocks_p90": 0.55, "Int_p90": 0.45},
+        "stats": {"TklW_p90": 1.00},
     },
     "retention": {          # → Composure
-        "weight": 5,
+        "weight": 2,
         "label": "Composure",
         "color": "#c084fc",
-        "stats": {"Cmp%": 1.0},
+        "stats": {"Fld_p90": 1.00},
     },
 }
 
 # ── Aggregation rules ─────────────────────────────────────────────────────────
-# FBref raw-count columns to sum across seasons
+# Raw-count columns present in FBref tables after the Lit migration.
+# Only columns with actual data are listed; empty columns are omitted.
 SUM_STATS = [
-    "Min", "Gls", "Ast", "xG", "xA", "npxG", "SoT",
-    "KP", "PrgP", "PrgC",
-    "Tkl", "Blocks", "Int",
-    "Cmp", "Att",              # pass attempts (for Cmp% re-derivation)
-    "Won", "Lost",             # aerial duels (stats_misc)
-    "Succ",                    # dribbles succeeded (stats_possession)
-    "Att_drb",                 # dribble attempts (stats_possession — renamed at merge time)
-    "SCA",                     # shot-creating actions (stats_gca)
-    "Saves", "GA",             # GK stats_keeper
-    "PSxG",                    # GK keeper_adv (for PSxG/SoT re-derivation)
-    "SoTA",                    # GK shots on target against (stats_keeper)
-    "Pres",                    # pressures raw count from stats_defense — Phase 4 (SCORE-04)
+    "Min", "Gls", "Ast",
+    "Sh", "SoT",               # shooting counts (stats_shooting)
+    "Int", "TklW",             # defensive counts (stats_defense / stats_misc)
+    "Fls", "Fld", "Crs",       # misc: fouls committed, fouls drawn, crosses
+    "Saves", "GA", "SoTA",     # GK stats_keeper (GA and SoTA for Save% re-derivation)
+    "xG", "xA",                # Understat totals — summed across seasons in _aggregate_fbref_seasons
 ]
 MEAN_STATS = []  # all rate stats re-derived from sums, not averaged
 PER90_STATS = [
-    "Gls", "Ast", "xG", "xA", "npxG", "SoT",
-    "KP", "PrgP", "PrgC",
-    "Tkl", "Blocks", "Int",
-    "Won",    # aerial duels won → DuelsWon_p90
-    "SCA",    # shot-creating actions → SCA_p90
-    "Saves",  # GK saves per 90
-    "Pres",   # → Pres_p90 — Phase 4 (SCORE-04)
+    "Gls", "Ast",
+    "Sh", "SoT",               # → Sh_p90, SoT_p90
+    "Int", "TklW",             # → Int_p90, TklW_p90
+    "Fls", "Fld", "Crs",       # → Fls_p90, Fld_p90, Crs_p90
+    "Saves",                   # GK → Saves_p90
+    "xG", "xA",                # → xG_p90, xA_p90 via compute_per90s()
 ]
