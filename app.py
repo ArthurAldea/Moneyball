@@ -730,6 +730,7 @@ def render_comparison_profile(active_players: pd.DataFrame, full_df: pd.DataFram
 def scatter_chart(
     df: pd.DataFrame,
     highlighted_players: list = None,
+    x_range: tuple = (0, 100),
     y_range_m: tuple = (0, 200),
 ) -> go.Figure:
     """
@@ -737,7 +738,8 @@ def scatter_chart(
     X = scout_score, Y = market_value_eur / 1e6 (€M).
     OLS regression line = 'fair value' (fit in log10(€M) space, converted back to €M).
     Points below the line: undervalued. Points above: overpriced.
-    y_range_m: (min, max) for y-axis in €M. X-axis uses Plotly rangeslider.
+    x_range: (min, max) for x-axis in scout score units (0-100).
+    y_range_m: (min, max) for y-axis in €M.
     """
     fig = go.Figure()
     df = df.copy()
@@ -817,19 +819,14 @@ def scatter_chart(
     fig.update_layout(
         **NAVY_LAYOUT,
         height=480,
+        dragmode="zoom",
         xaxis=dict(
             title="SCOUT SCORE",
+            range=[x_range[0], x_range[1]],
             gridcolor="rgba(255,255,255,0.06)",
             linecolor="rgba(255,255,255,0.1)",
             title_font=dict(color="#8DA4B8", size=11),
             tickfont=dict(color="#8DA4B8"),
-            rangeslider=dict(
-                visible=True,
-                thickness=0.06,
-                bgcolor="#112236",
-                bordercolor="rgba(0,168,255,0.2)",
-                borderwidth=1,
-            ),
         ),
         yaxis=dict(
             title="MARKET VALUE (€M)",
@@ -987,7 +984,7 @@ if df.empty:
     st.warning("NO PLAYERS MATCH CURRENT FILTERS")
     st.caption("Try widening your age range, adding more leagues, or adjusting the market value limits.")
     if st.button("Reset Filters"):
-        for key in ["sel_leagues", "sel_positions", "age_range", "sel_clubs", "mv_range", "sel_seasons", "player_search", "mv_plot_max", "mv_plot_min"]:
+        for key in ["sel_leagues", "sel_positions", "age_range", "sel_clubs", "mv_range", "sel_seasons", "player_search", "mv_y_range", "scout_x_range"]:
             if key in st.session_state:
                 del st.session_state[key]
         st.rerun()
@@ -1071,31 +1068,76 @@ st.markdown(
 # scatter_chart expects raw EUR market_value_eur — use filtered df (not display_df)
 _highlighted = active_players["Player"].tolist() if not active_players.empty else []
 
-# Y-axis range slider — narrow left column sits visually next to the y-axis
+# Y-axis max derived from data
 mv_max_m = max(int(np.ceil(full_df["market_value_eur"].max() / 1e7)) * 10, 200) if not full_df.empty else 200
 
-col_yslider, col_scatter = st.columns([0.04, 0.96])
-with col_yslider:
+# Read slider values from session state (set on previous rerun — standard Streamlit pattern)
+scout_x_range = st.session_state.get("scout_x_range", (0, 100))
+mv_y_range = st.session_state.get("mv_y_range", (0, mv_max_m))
+
+# Column layout: narrow y-slider column (vertical, rotated) | chart column
+col_y, col_chart = st.columns([0.05, 0.95])
+
+with col_y:
+    # CSS to rotate this slider vertical (targets first column's slider in the horizontal block)
     st.markdown(
-        "<div style='writing-mode:vertical-rl;transform:rotate(180deg);"
-        "font-size:9px;font-weight:600;letter-spacing:0.1em;color:#8DA4B8;"
-        "text-transform:uppercase;height:120px;margin-top:40px;'>VALUE (€M)</div>",
+        """<style>
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child
+          div[data-testid="stSlider"] > div {
+            transform: rotate(270deg) !important;
+            transform-origin: center center !important;
+            width: 300px !important;
+            position: relative !important;
+            top: 150px !important;
+            left: -110px !important;
+        }
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child
+          div[data-testid="stSlider"] {
+            height: 320px !important;
+            overflow: visible !important;
+        }
+        </style>""",
         unsafe_allow_html=True,
     )
-    mv_plot_max = st.slider(
-        "mv_y_max", min_value=10, max_value=mv_max_m, value=mv_max_m, step=10,
-        label_visibility="collapsed", key="mv_plot_max",
-    )
-    mv_plot_min = st.slider(
-        "mv_y_min", min_value=0, max_value=mv_plot_max - 10, value=0, step=10,
-        label_visibility="collapsed", key="mv_plot_min",
+    st.slider(
+        "Value (€M)",
+        min_value=0,
+        max_value=mv_max_m,
+        value=mv_y_range,
+        step=10,
+        label_visibility="collapsed",
+        key="mv_y_range",
     )
 
-with col_scatter:
+with col_chart:
     st.plotly_chart(
-        scatter_chart(df, highlighted_players=_highlighted, y_range_m=(mv_plot_min, mv_plot_max)),
+        scatter_chart(
+            df,
+            highlighted_players=_highlighted,
+            x_range=scout_x_range,
+            y_range_m=mv_y_range,
+        ),
         use_container_width=True,
+        config={
+            "scrollZoom": True,
+            "displayModeBar": True,
+            "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+            "toImageButtonOptions": {"format": "png", "filename": "moneyball_scatter"},
+        },
     )
+
+# X-axis range slider — horizontal, below the chart
+st.markdown("<div style='margin-top:-8px;'>", unsafe_allow_html=True)
+st.slider(
+    "Scout Score Range",
+    min_value=0,
+    max_value=100,
+    value=scout_x_range,
+    step=1,
+    label_visibility="collapsed",
+    key="scout_x_range",
+)
+st.markdown("</div>", unsafe_allow_html=True)
 
 # DASH-07: cross-league disclaimer
 if should_show_disclaimer(sel_leagues):
