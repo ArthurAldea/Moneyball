@@ -1055,14 +1055,13 @@ if not active_players.empty:
         )
         render_single_profile(active_players.iloc[0], full_df)
 
-    # Comparison mode (2–3 players) — implemented in Plan 03
+    # Comparison mode (2–3 players selected)
     else:
         st.markdown(
             "<div class='section-header' style='margin-top:24px;'>PLAYER PROFILE — COMPARISON</div>",
             unsafe_allow_html=True,
         )
-        names = active_players["Player"].tolist()
-        st.caption(f"Comparing: {', '.join(names)} — Full comparison view coming in next update.")
+        render_comparison_profile(active_players, full_df)
 
 # ── UV scatter plot (DASH-06) ─────────────────────────────────────────────────
 
