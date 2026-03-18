@@ -1060,6 +1060,7 @@ with tab_methodology:
 | Source | What we use it for |
 |---|---|
 | **FBref** | Per-match and per-90 statistics for all players across the top 5 European leagues (EPL, La Liga, Bundesliga, Serie A, Ligue 1). Scraped via Playwright to handle Cloudflare protection. |
+| **Understat** | Expected goals (xG) and expected assists (xA) per player per season. Scraped separately and merged into the FBref dataset by player name. Used in the Attacking and Creation pillars for forwards and midfielders. |
 | **Transfermarkt** | Market values for all players in €M. These are community-estimated valuations, not official transfer fees or club valuations. |
 | **football-data.co.uk** | League table standings, used to apply team strength adjustments to defensive players. |
 """)
@@ -1067,7 +1068,8 @@ with tab_methodology:
     st.markdown("### Data Limitations")
     st.markdown("""
 - **Minimum 900 minutes:** Players with fewer than 900 minutes in a season are excluded. This filters out squad fillers and injury-hit players, but may exclude some legitimate rotation players.
-- **Stat availability:** FBref's 2025 data restructure removed several advanced metrics. The following are **not available** and therefore not in the model: expected goals (xG), expected assists (xA), progressive carries and passes, pressures, key passes, and aerial duel data.
+- **FBref stat availability:** FBref's 2025 data restructure removed several advanced metrics. The following are not available from FBref and therefore not in the model: progressive carries and passes, pressures, key passes, and aerial duel data. xG and xA are sourced from Understat instead (see above).
+- **xG/xA match rate:** Understat player names are matched to FBref by fuzzy name matching. A small number of players (~5–10% per league) may not receive an xG/xA match due to name formatting differences. Unmatched players have xG/xA treated as zero in the model.
 - **Market value accuracy:** Transfermarkt values are community-driven estimates. They lag reality for players who have recently broken out or declined.
 - **Season scope:** Data covers the 2023-24 and 2024-25 seasons. Mid-season 2025-26 data is excluded.
 - **Position classification:** FBref's primary position is used. Players who operate in hybrid or non-standard roles may be compared against an imperfect peer group.
@@ -1081,13 +1083,25 @@ The Scout Score (0–100) is a composite performance rating built from **five st
 
 | Pillar | What it captures |
 |---|---|
-| **Attacking** | Goal threat and direct attacking output |
+| **Attacking** | Goal threat and direct attacking output, including expected goals |
 | **Progression** | Ability to advance the ball and create shooting opportunities |
-| **Creation** | Chance creation and assist contribution |
+| **Creation** | Chance creation and assist contribution, including expected assists |
 | **Defense** | Defensive actions: tackles, interceptions |
 | **Retention** | Ball retention under pressure |
 
 Each pillar is scored from underlying per-90 statistics (per 90 minutes played), so players are compared on rate — not volume — of output.
+
+**Stats used per pillar by position:**
+
+| Pillar | FW | MF | DF | GK |
+|---|---|---|---|---|
+| **Attacking** | xG, shots on target, assists | xG, goals, shots on target | Goals, shots on target, assists | Save %, saves |
+| **Progression** | Shots, fouls drawn | Crosses, fouls drawn | Crosses | Saves |
+| **Creation** | xA, assists, crosses | xA, assists, crosses | Assists, crosses | — |
+| **Defense** | Interceptions, tackles won | Interceptions, tackles won | Interceptions, tackles won | — |
+| **Retention** | Fouls drawn | Fouls drawn | Fouls drawn | — |
+
+xG and xA are sourced from Understat and reflect the quality of chances a player generates or converts — not just raw goals and assists. This means a forward who consistently hits the net from high-quality positions is rewarded even in a low-scoring stretch, and a forward who scores from poor positions is not over-rewarded.
 
 **Normalization:** Scores are normalized using MinMax scaling **within each league and position group independently**. A Scout Score of 80 means the player ranked in the top 20% of their position in their league — not across all leagues. Cross-league comparison uses a league quality multiplier (see below).
 
