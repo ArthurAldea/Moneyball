@@ -2,21 +2,21 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 06
-status: completed
-stopped_at: Completed 06-03-PLAN.md
-last_updated: "2026-03-18T04:39:36.713Z"
+current_phase: "06.1"
+status: in_progress
+stopped_at: Completed 06.1-01-PLAN.md
+last_updated: "2026-03-18T08:57:00Z"
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 7
-  total_plans: 20
-  completed_plans: 20
+  total_plans: 23
+  completed_plans: 21
 ---
 
 # Project State
 
-**Current Phase:** 06
-**Status:** Milestone complete
+**Current Phase:** 06.1 — Understat Integration
+**Status:** In Progress (1/3 plans complete)
 **Last Updated:** 2026-03-18
 
 ## Project Reference
@@ -34,11 +34,12 @@ See: .planning/PROJECT.md
 | 4 | Advanced Scoring | ✅ Complete |
 | 5 | Dashboard Rebuild — Shortlist & Filters | ✅ Complete |
 | 5.1 | Fix FBref Scraping — Playwright Cloudflare bypass | ✅ Complete |
-| 6 | Player Deep Profile | 🔄 In Progress (2/3 plans complete) |
+| 6 | Player Deep Profile | ✅ Complete |
+| 6.1 | Understat Integration | 🔄 In Progress (1/3 plans complete) |
 
 ## Current Position
 
-**Next:** Execute Phase 6 Plan 03 — Player Comparison View
+**Next:** Execute Phase 06.1 Plan 02 — attach_understat_xg() merger integration
 
 ## Accumulated Decisions
 
@@ -56,11 +57,17 @@ See: .planning/PROJECT.md
 - [Phase 06-03]: render_comparison_profile() uses first player's Pos as peer median reference group for radar; stat table pillars follow first player position config but percentile computed per-player against own position peer pool
 - [Phase 06-03]: scatter_chart x_range param removed — Plotly native rangeslider handles x-axis zoom embedded below chart
 - [Phase 06-03]: Y-axis range split into two sliders (mv_plot_max, mv_plot_min) in 4% column beside scatter chart; sidebar axis sliders removed
+- **[06.1-01] scrape_understat_league cache key**: `understat_{league}_{season_label}` (e.g. understat_EPL_2024-25.csv) — distinct from legacy EPL-only `understat_{season_label.replace('-','')}` format; both coexist
+- **[06.1-01] run_understat_scrapers return structure**: `{league: {season_label: DataFrame}}` — matches attach_understat_xg signature in Plan 02
 
 ## Session Continuity
-Last session: 2026-03-18T04:20:19.205Z
-Stopped at: Completed 06-03-PLAN.md
+Last session: 2026-03-18T08:57:00Z
+Stopped at: Completed 06.1-01-PLAN.md
 Resume file: None
+
+## Roadmap Evolution
+
+- Phase 06.1 inserted after Phase 6: Understat integration — resurrect xG/xA scraper, merge into FBref pipeline, update Attacking and Creation pillar weights in scorer (URGENT)
 
 ## Blockers/Concerns
 - Some Transfermarkt market values appear stale/incorrect (e.g. Álex Grimaldo at €100K) — TM scraping issue, not scoring
