@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 06 (executing)
 status: completed
-stopped_at: Completed 06-03-PLAN.md — awaiting human-verify checkpoint
-last_updated: "2026-03-18T04:01:40.166Z"
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-03-18T04:20:59.278Z"
 progress:
   total_phases: 7
   completed_phases: 7
@@ -54,10 +54,12 @@ See: .planning/PROJECT.md
 - **[03-02] Pass 3 requires club cross-check**
 - **[02-01] MEAN_STATS=[] in aggregation:** All rate stats re-derived from summed raw counts
 - [Phase 06-03]: render_comparison_profile() uses first player's Pos as peer median reference group for radar; stat table pillars follow first player position config but percentile computed per-player against own position peer pool
+- [Phase 06-03]: scatter_chart x_range param removed — Plotly native rangeslider handles x-axis zoom embedded below chart
+- [Phase 06-03]: Y-axis range split into two sliders (mv_plot_max, mv_plot_min) in 4% column beside scatter chart; sidebar axis sliders removed
 
 ## Session Continuity
-Last session: 2026-03-18T04:01:40.163Z
-Stopped at: Completed 06-03-PLAN.md — awaiting human-verify checkpoint
+Last session: 2026-03-18T04:20:19.205Z
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None
 
 ## Blockers/Concerns
