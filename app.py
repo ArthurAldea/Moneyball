@@ -353,6 +353,179 @@ def parse_similar_players(row: pd.Series, full_df: pd.DataFrame) -> list:
     return enriched
 
 
+def _pct_bar_html(pct: float) -> str:
+    """Return inline HTML for a colored percentile progress bar (0-100)."""
+    pct = max(0.0, min(100.0, float(pct)))
+    if pct < 33:
+        color = "#FF5757"   # red — bottom third
+    elif pct < 66:
+        color = "#F5A623"   # amber — middle third
+    else:
+        color = "#2ECC71"   # green — top third
+    return (
+        f"<div style='background:rgba(255,255,255,0.08);border-radius:3px;"
+        f"height:8px;width:120px;display:inline-block;'>"
+        f"<div style='width:{pct:.0f}%;background:{color};height:8px;"
+        f"border-radius:3px;'></div></div>"
+    )
+
+
+def render_single_profile(player_row: pd.Series, full_df: pd.DataFrame) -> None:
+    """
+    Render the full single-player profile section.
+    Layout: header block → [radar left (40%) | stat table right (60%)] → similar players panel.
+    All percentiles computed against full_df cross-league position peers.
+    """
+    pos = player_row.get("Pos", "MF")
+    pillars_cfg = _POS_PILLARS.get(pos, PILLARS_MF)
+
+    # ── Header block (PROFILE-01) ──────────────────────────────────────────
+    hdr = get_profile_header(player_row)
+    mv_str = f"€{hdr['market_value_m']:.1f}M" if hdr["market_value_m"] is not None else "N/A"
+    st.markdown(
+        f"<div style='background:#112236;border:1px solid rgba(0,168,255,0.25);"
+        f"border-left:3px solid {POS_COLORS.get(pos, '#00A8FF')};"
+        f"padding:16px 20px;border-radius:4px;margin-bottom:16px;'>"
+        f"<div style='font-size:20px;font-weight:600;color:#E8EDF2;'>{hdr['name']}</div>"
+        f"<div style='font-size:13px;color:#8DA4B8;margin-top:4px;'>"
+        f"{hdr['club']} &nbsp;·&nbsp; {hdr['league']} &nbsp;·&nbsp; "
+        f"{hdr['position']} &nbsp;·&nbsp; Age {hdr['age']} &nbsp;·&nbsp; "
+        f"{hdr['nation']} &nbsp;·&nbsp; {mv_str}"
+        f"</div></div>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Two-column layout: radar (40%) | stat table (60%) ─────────────────
+    col_radar, col_stats = st.columns([0.4, 0.6])
+
+    with col_radar:
+        # PROFILE-02: Radar chart
+        # Normalize score_* by dividing by pillar_weight/100 to get 0-100 range.
+        scores_normalized = []
+        for key in PILLAR_KEYS:
+            raw_score = float(player_row.get(f"score_{key}", 0) or 0)
+            weight = pillars_cfg.get(key, {}).get("weight", 1)
+            normalized = (raw_score / (weight / 100.0)) if weight > 0 else 0.0
+            normalized = min(100.0, max(0.0, normalized))
+            scores_normalized.append(normalized)
+
+        # Peer median: median of same normalized scores across all same-position players in full_df
+        peer_pool = full_df[full_df["Pos"] == pos]
+        peer_medians = []
+        for key in PILLAR_KEYS:
+            weight = pillars_cfg.get(key, {}).get("weight", 1)
+            col = f"score_{key}"
+            if col in peer_pool.columns and weight > 0:
+                raw_vals = peer_pool[col].dropna()
+                med_normalized = float((raw_vals / (weight / 100.0)).median()) if not raw_vals.empty else 0.0
+                peer_medians.append(min(100.0, max(0.0, med_normalized)))
+            else:
+                peer_medians.append(0.0)
+
+        player_color = POS_COLORS.get(pos, "#00A8FF")
+        players_data = [{"name": hdr["name"], "scores": scores_normalized, "color": player_color}]
+        radar_fig = build_radar_figure(players_data, peer_medians)
+        st.plotly_chart(radar_fig, use_container_width=True)
+
+    with col_stats:
+        # PROFILE-03: Per-90 stat table with percentile bars (HTML markdown)
+        # Build an HTML table: pillar group header rows + stat data rows.
+        peer_pool_pos = full_df[full_df["Pos"] == pos]
+
+        rows_html = []
+        rows_html.append(
+            "<table style='width:100%;border-collapse:collapse;font-size:12px;'>"
+            "<thead><tr>"
+            "<th style='text-align:left;color:#8DA4B8;padding:4px 8px;border-bottom:"
+            "1px solid rgba(255,255,255,0.1);'>STAT</th>"
+            "<th style='text-align:right;color:#8DA4B8;padding:4px 8px;border-bottom:"
+            "1px solid rgba(255,255,255,0.1);'>PER 90</th>"
+            "<th style='text-align:left;color:#8DA4B8;padding:4px 8px;border-bottom:"
+            "1px solid rgba(255,255,255,0.1);'>PERCENTILE</th>"
+            "</tr></thead><tbody>"
+        )
+
+        for key in PILLAR_KEYS:
+            pillar = pillars_cfg.get(key, {})
+            pillar_label = pillar.get("label", key.capitalize())
+            stat_keys = list(pillar.get("stats", {}).keys())
+
+            # Pillar group header row
+            rows_html.append(
+                f"<tr><td colspan='3' style='padding:8px 8px 2px 8px;"
+                f"color:#00A8FF;font-weight:600;font-size:11px;"
+                f"letter-spacing:0.1em;text-transform:uppercase;'>"
+                f"{pillar_label}</td></tr>"
+            )
+
+            seen = set()
+            for stat_col in stat_keys:
+                if stat_col in seen:
+                    continue
+                seen.add(stat_col)
+                if stat_col not in player_row.index:
+                    continue
+                val = player_row.get(stat_col)
+                if pd.isna(val):
+                    continue
+                val = float(val)
+
+                # Percentile against full_df same-position peers
+                if stat_col in peer_pool_pos.columns:
+                    peer_series = peer_pool_pos[stat_col].dropna()
+                    pct = compute_percentile(val, peer_series)
+                else:
+                    pct = 50.0
+
+                stat_display = stat_col.replace("_p90", "/90").replace("_", " ")
+                bar_html = _pct_bar_html(pct)
+                rows_html.append(
+                    f"<tr style='border-bottom:1px solid rgba(255,255,255,0.05);'>"
+                    f"<td style='padding:4px 8px;color:#E8EDF2;'>{stat_display}</td>"
+                    f"<td style='padding:4px 8px;text-align:right;color:#E8EDF2;"
+                    f"font-variant-numeric:tabular-nums;'>{val:.2f}</td>"
+                    f"<td style='padding:4px 8px;'>{bar_html}</td>"
+                    f"</tr>"
+                )
+
+        rows_html.append("</tbody></table>")
+        st.markdown("".join(rows_html), unsafe_allow_html=True)
+
+    # ── Similar players panel (PROFILE-05) ────────────────────────────────
+    similar = parse_similar_players(player_row, full_df)
+    if similar:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='section-header'>SIMILAR PLAYERS</div>",
+            unsafe_allow_html=True,
+        )
+        n_cols = min(len(similar), 5)
+        sim_cols = st.columns(n_cols)
+        for i, sp in enumerate(similar[:5]):
+            mv_str = f"€{sp['market_value_m']:.1f}M" if sp.get("market_value_m") is not None else "N/A"
+            uv_str = f"{sp['uv_score_age_weighted']:.1f}" if sp.get("uv_score_age_weighted") else "—"
+            with sim_cols[i]:
+                st.markdown(
+                    f"<div style='background:#112236;border:1px solid rgba(0,168,255,0.2);"
+                    f"border-radius:4px;padding:10px;font-size:12px;text-align:center;'>"
+                    f"<div style='font-weight:600;color:#E8EDF2;'>{sp['player']}</div>"
+                    f"<div style='color:#8DA4B8;margin-top:2px;'>{sp['club']}</div>"
+                    f"<div style='color:#8DA4B8;'>{sp['league']}</div>"
+                    f"<div style='color:#8DA4B8;'>Age {sp['age']} · {mv_str}</div>"
+                    f"<div style='color:#00A8FF;'>UV {uv_str}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+                # Clickable navigation button
+                if st.button(
+                    "View Profile",
+                    key=f"sim_{sp['player']}_{sp['club']}_{i}",
+                ):
+                    st.session_state["profile_player"] = sp["player"]
+                    st.session_state["profile_player_club"] = sp["club"]
+                    st.rerun()
+
+
 # ── Scatter chart ──────────────────────────────────────────────────────────────
 
 
