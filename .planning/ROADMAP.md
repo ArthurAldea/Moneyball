@@ -162,3 +162,25 @@ Plans:
 5. The Similar Players panel lists exactly five players with Player, Club, League, Age, Market Value, and Age-Weighted UV Score — each drawn from the cosine similarity computation in Phase 4.
 6. A player name search text input in the sidebar filters the shortlist in real-time (case-insensitive partial match); clearing the input restores all rows.
 7. When two or more players are selected from the shortlist, the profile view enters comparison mode: the radar chart overlays one filled polygon per player with distinct colors and a legend; the per-90 stat table shows one column per selected player; the UV scatter chart highlights all selected players with distinct markers and labels.
+
+### Phase 06.1: Understat integration: resurrect xG/xA scraper, merge into FBref pipeline, update Attacking and Creation pillar weights in scorer (INSERTED)
+
+**Goal:** Resurrect xG and xA per-90 stats from Understat for all 5 leagues x 2 seasons. Merge them into the FBref pipeline. Update the Attacking and Creation pillar weights in the scorer to incorporate xG_p90 and xA_p90 — improving the model's ability to reward prolific scorers like Haaland.
+**Requirements:** SCORE-01, DATA-01, DATA-05, DATA-06
+**Depends on:** Phase 6
+**Plans:** 3 plans
+
+Plans:
+- [ ] 06.1-01-PLAN.md — Wave 0 test stubs (scraper + merger) + config UNDERSTAT_LEAGUE_NAMES + scrape_understat_league() + run_understat_scrapers()
+- [ ] 06.1-02-PLAN.md — attach_understat_xg() in merger.py + wire into build_dataset() + update run_scoring_pipeline()
+- [ ] 06.1-03-PLAN.md — Wave 0 scorer stubs + FW/MF pillar weight updates + CLAUDE.md update
+
+**Success Criteria:**
+1. scrape_understat_league(league, season_year, season_label) produces a DataFrame with Player, Squad, Min, xG, xA columns; cache file named cache/understat_{league}_{season}.csv.
+2. run_understat_scrapers() covers all 5 leagues x 2 seasons (10 scrape calls).
+3. attach_understat_xg() joins xG/xA onto the FBref merged DataFrame; unmatched players get NaN (not dropped); match rate below 70% triggers a WARNING log.
+4. compute_per90s() produces xG_p90 and xA_p90 automatically after xG/xA are present in the DataFrame.
+5. PILLARS_FW attacking stats: xG_p90 (0.45), SoT_p90 (0.35), Ast_p90 (0.20). PILLARS_FW creation stats: xA_p90 (0.50), Ast_p90 (0.30), Crs_p90 (0.20).
+6. PILLARS_MF attacking stats: xG_p90 (0.40), Gls_p90 (0.35), SoT_p90 (0.25). PILLARS_MF creation stats: xA_p90 (0.50), Ast_p90 (0.30), Crs_p90 (0.20).
+7. All pillar weight dicts sum to 1.0. DF and GK pillars unchanged.
+8. Full test suite (test_scraper.py test_merger.py test_scorer.py test_app.py) entirely green.
