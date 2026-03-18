@@ -18,7 +18,7 @@
 
 ### Scoring Model
 
-- [ ] **SCORE-01**: System computes position-specific pillar scores (GK / FW / MF / DF) using existing weight structure, normalized via MinMaxScaler fitted per league+position group independently
+- [x] **SCORE-01**: System computes position-specific pillar scores (GK / FW / MF / DF) using existing weight structure, normalized via MinMaxScaler fitted per league+position group independently
 - [ ] **SCORE-02**: MF Progression pillar uses `0.6 × PrgP_p90 + 0.4 × SCA_p90` (replaces `xGChain_p90` from Understat)
 - [ ] **SCORE-03**: FW and DF Progression pillar uses `PrgC_p90` (progressive carries per 90, replaces `xGBuildup_p90` from Understat)
 - [x] **SCORE-04**: System applies team strength adjustment: ±10% multiplier on defensive per-90 stats (Tkl, Int, Blocks, DuelsWon, Pres, GK Save%/PSxG/SoT) for DF and GK only, based on league position — bottom-half clubs upward, top-half downward

@@ -2,21 +2,21 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: "06.1"
-status: in_progress
-stopped_at: Completed 06.1-02-PLAN.md
-last_updated: "2026-03-18T09:30:00Z"
+current_phase: 06.1 — Understat Integration
+status: executing
+stopped_at: Completed 06.1-03-PLAN.md
+last_updated: "2026-03-18T09:11:25.408Z"
 progress:
   total_phases: 8
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 23
-  completed_plans: 22
+  completed_plans: 23
 ---
 
 # Project State
 
 **Current Phase:** 06.1 — Understat Integration
-**Status:** In Progress (2/3 plans complete)
+**Status:** Complete (3/3 plans complete)
 **Last Updated:** 2026-03-18
 
 ## Project Reference
@@ -35,11 +35,11 @@ See: .planning/PROJECT.md
 | 5 | Dashboard Rebuild — Shortlist & Filters | ✅ Complete |
 | 5.1 | Fix FBref Scraping — Playwright Cloudflare bypass | ✅ Complete |
 | 6 | Player Deep Profile | ✅ Complete |
-| 6.1 | Understat Integration | 🔄 In Progress (2/3 plans complete) |
+| 6.1 | Understat Integration | ✅ Complete |
 
 ## Current Position
 
-**Next:** Execute Phase 06.1 Plan 03 — update Attacking and Creation pillar weights to use xG_p90/xA_p90
+**Next:** Phase 06.1 complete. All 3 plans executed. xG/xA Understat integration fully live.
 
 ## Accumulated Decisions
 
@@ -62,10 +62,11 @@ See: .planning/PROJECT.md
 - **[06.1-02] attach_understat_xg Pass 2 adds token_sort_ratio >= 60 gate**: WRatio alone scores "Unknown Player" vs "Known Player" at 92 due to shared suffix — token_sort_ratio=46 for that pair correctly rejects it while real abbreviation mismatches pass.
 - **[06.1-02] League column set before attach_understat_xg in build_dataset loop**: function requires League column to scope understat lookup to correct league data.
 - **[06.1-02] run_understat_scrapers called inside run_scoring_pipeline**: keeps public API unchanged while adding understat data to the pipeline.
+- [Phase 06.1]: FW/MF creation pillars use explicit inline dicts (not _CREATION spread) to allow xA_p90 stats while DF creation stays unchanged on Ast_p90+Crs_p90
 
 ## Session Continuity
-Last session: 2026-03-18T09:30:00Z
-Stopped at: Completed 06.1-02-PLAN.md
+Last session: 2026-03-18T09:11:20.952Z
+Stopped at: Completed 06.1-03-PLAN.md
 Resume file: None
 
 ## Roadmap Evolution
