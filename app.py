@@ -839,10 +839,14 @@ def scatter_chart(
             tickfont=dict(color="#8DA4B8"),
         ),
         legend=dict(
-            bgcolor="#112236",
+            bgcolor="rgba(17,34,54,0.85)",
             bordercolor="rgba(0,168,255,0.2)",
             borderwidth=1,
             font=dict(color="#E8EDF2"),
+            x=0.99,
+            y=0.99,
+            xanchor="right",
+            yanchor="top",
         ),
     )
     return fig
@@ -984,7 +988,7 @@ if df.empty:
     st.warning("NO PLAYERS MATCH CURRENT FILTERS")
     st.caption("Try widening your age range, adding more leagues, or adjusting the market value limits.")
     if st.button("Reset Filters"):
-        for key in ["sel_leagues", "sel_positions", "age_range", "sel_clubs", "mv_range", "sel_seasons", "player_search", "mv_y_range", "scout_x_range"]:
+        for key in ["sel_leagues", "sel_positions", "age_range", "sel_clubs", "mv_range", "sel_seasons", "player_search", "scout_x_range"]:
             if key in st.session_state:
                 del st.session_state[key]
         st.rerun()
@@ -1071,78 +1075,31 @@ _highlighted = active_players["Player"].tolist() if not active_players.empty els
 # Y-axis max derived from data
 mv_max_m = max(int(np.ceil(full_df["market_value_eur"].max() / 1e7)) * 10, 200) if not full_df.empty else 200
 
-# Read slider values from session state (set on previous rerun — standard Streamlit pattern)
+# Read x-range from session state (set on previous rerun)
 scout_x_range = st.session_state.get("scout_x_range", (0, 100))
-mv_y_range = st.session_state.get("mv_y_range", (0, mv_max_m))
 
-# Inject CSS for vertical y-slider via stable wrapper class
-st.markdown(
-    """<style>
-    /* Vertical slider: rotate the inner slider div inside our wrapper */
-    .mb-vert-slider [data-testid="stSlider"] > div {
-        transform: rotate(270deg);
-        transform-origin: center center;
-        width: 280px;
-        position: relative;
-        top: 130px;
-        left: -105px;
-    }
-    .mb-vert-slider [data-testid="stSlider"] {
-        height: 320px;
-        overflow: visible;
-    }
-    /* X-axis slider: remove extra top padding */
-    .mb-x-slider {
-        margin-top: -10px;
-    }
-    </style>""",
-    unsafe_allow_html=True,
+st.plotly_chart(
+    scatter_chart(df, highlighted_players=_highlighted, x_range=scout_x_range),
+    use_container_width=True,
+    config={
+        "scrollZoom": True,
+        "displayModeBar": True,
+        "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+        "toImageButtonOptions": {"format": "png", "filename": "moneyball_scatter"},
+    },
 )
-
-# Column layout: narrow y-slider column (vertical, rotated) | chart column
-col_y, col_chart = st.columns([0.05, 0.95])
-
-with col_y:
-    st.markdown('<div class="mb-vert-slider">', unsafe_allow_html=True)
-    st.slider(
-        "Value (€M)",
-        min_value=0,
-        max_value=mv_max_m,
-        value=mv_y_range,
-        step=10,
-        label_visibility="collapsed",
-        key="mv_y_range",
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-
-with col_chart:
-    st.plotly_chart(
-        scatter_chart(
-            df,
-            highlighted_players=_highlighted,
-            x_range=scout_x_range,
-            y_range_m=mv_y_range,
-        ),
-        use_container_width=True,
-        config={
-            "scrollZoom": True,
-            "displayModeBar": True,
-            "modeBarButtonsToRemove": ["lasso2d", "select2d"],
-            "toImageButtonOptions": {"format": "png", "filename": "moneyball_scatter"},
-        },
-    )
-    # X-axis slider inside the chart column — matches chart width exactly
-    st.markdown('<div class="mb-x-slider">', unsafe_allow_html=True)
-    st.slider(
-        "Scout Score Range",
-        min_value=0,
-        max_value=100,
-        value=scout_x_range,
-        step=1,
-        label_visibility="collapsed",
-        key="scout_x_range",
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+# X-axis range slider — full width, sits directly below the chart
+st.markdown("<div style='margin-top:-14px;'>", unsafe_allow_html=True)
+st.slider(
+    "Scout Score Range",
+    min_value=0,
+    max_value=100,
+    value=scout_x_range,
+    step=1,
+    label_visibility="collapsed",
+    key="scout_x_range",
+)
+st.markdown("</div>", unsafe_allow_html=True)
 
 # DASH-07: cross-league disclaimer
 if should_show_disclaimer(sel_leagues):
