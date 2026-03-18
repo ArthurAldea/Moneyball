@@ -11,7 +11,12 @@ import re
 import time
 import asyncio
 import requests
-import nodriver as uc
+try:
+    import nodriver as uc
+    _NODRIVER_AVAILABLE = True
+except Exception:
+    uc = None
+    _NODRIVER_AVAILABLE = False
 import pandas as pd
 from curl_cffi import requests as cf_requests
 from bs4 import BeautifulSoup, Comment
@@ -83,6 +88,9 @@ def _do_playwright_get(url: str) -> str:
     monkeypatch it without launching a real browser.
     """
     global _uc_browser
+
+    if not _NODRIVER_AVAILABLE:
+        raise RuntimeError("nodriver is not available in this environment; run scraper.py locally to pre-populate the cache.")
 
     async def _fetch() -> str:
         browser = await uc.start(headless=False)
