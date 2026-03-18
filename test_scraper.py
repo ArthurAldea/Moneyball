@@ -41,9 +41,9 @@ from config import (
 
 MINIMAL_FBREF_TABLE_HTML = """
 <html><body>
-<!-- stats_standard_9 table wrapped in a comment -->
+<!-- stats_standard table wrapped in a comment (Phase 5.1: no comp_id suffix) -->
 <!--
-<table id="stats_standard_9">
+<table id="stats_standard">
   <thead>
     <tr>
       <th>Unnamed: 0_level_0</th>
@@ -161,7 +161,7 @@ def test_table_extraction():
     _extract_fbref_table finds a table inside an HTML comment block,
     flattens multi-level headers, and removes repeat Rk header rows.
     """
-    df = _extract_fbref_table(MINIMAL_FBREF_TABLE_HTML, "stats_standard_9")
+    df = _extract_fbref_table(MINIMAL_FBREF_TABLE_HTML, "stats_standard")
 
     assert isinstance(df, pd.DataFrame), "Should return a DataFrame"
     assert len(df) > 0, "DataFrame should have rows"
@@ -175,7 +175,7 @@ def test_table_extraction():
 
     # Raises ValueError when table_id is not found
     with pytest.raises(ValueError, match="not found"):
-        _extract_fbref_table(MINIMAL_FBREF_TABLE_HTML, "stats_nonexistent_9")
+        _extract_fbref_table(MINIMAL_FBREF_TABLE_HTML, "stats_nonexistent")
 
 
 # ── test_column_presence (DATA-02) ────────────────────────────────────────────
@@ -271,11 +271,15 @@ def test_cache_hit_is_fast(tmp_path, monkeypatch):
     """
     import scraper as scraper_module
 
-    # Pre-populate fake CSV files for all 9 tables × 2 seasons
+    # Pre-populate fake CSV files for all 9 tables × 2 seasons + standings
     for table in FBREF_TABLES:
         for season in FBREF_SEASONS:
             cache_file = tmp_path / f"fbref_EPL_{table}_{season}.csv"
             cache_file.write_text("Player,Min\nTest Player,1000\n")
+    # Standings cache — prevents run_fbref_scrapers from making a live HTTP request
+    for season in FBREF_SEASONS:
+        standings_file = tmp_path / f"fbref_EPL_standings_{season}.csv"
+        standings_file.write_text("Squad,Rk\nManchester City,1\nArsenal,2\n")
 
     # Redirect CACHE_DIR so _fbref_cache_path points to tmp_path
     monkeypatch.setattr(scraper_module, "CACHE_DIR", str(tmp_path))
@@ -472,3 +476,99 @@ def test_tm_cache_naming_league_keyed(tmp_path, monkeypatch):
     assert not any(key == "tm_values_202425" for key in written_paths), (
         "Old league-free cache key 'tm_values_202425' must not be used"
     )
+
+
+# ── Wave 0: Understat per-league scraper (Phase 06.1) ─────────────────────────
+
+def test_understat_league_columns():
+    """scrape_understat_league() returns DataFrame with required columns."""
+    from scraper import scrape_understat_league
+    # Use a mock so no network call is made; verify column contract only.
+    import unittest.mock as mock
+    sample_players = [
+        {"player_name": "Test Player", "team_title": "Test FC",
+         "position": "F", "time": "1200", "xG": "0.45", "xA": "0.30"},
+    ]
+    async def _fake_get_league_players(slug, year):
+        return sample_players
+    with mock.patch("scraper.asyncio.run") as mock_run:
+        mock_run.return_value = pd.DataFrame([{
+            "Player": "Test Player", "Squad": "Test FC", "Pos": "FW",
+            "Min": 1200.0, "xG": 0.45, "xA": 0.30, "season": "2024-25",
+        }])
+        df = scrape_understat_league("EPL", 2024, "2024-25")
+    assert set(["Player", "Squad", "Min", "xG", "xA"]).issubset(df.columns), \
+        f"Missing columns. Got: {list(df.columns)}"
+
+
+def test_understat_cache_naming(tmp_path, monkeypatch):
+    """Cache file uses naming convention cache/understat_{league}_{season}.csv."""
+    from scraper import scrape_understat_league, _cache_path
+    import unittest.mock as mock
+    monkeypatch.setattr("scraper.CACHE_DIR", str(tmp_path))
+    expected_key = "understat_LaLiga_2023-24"
+    expected_path = str(tmp_path / f"{expected_key}.csv")
+    captured = {}
+    original_cache_path = _cache_path
+    def fake_cache_path(key):
+        captured["key"] = key
+        return str(tmp_path / f"{key}.csv")
+    with mock.patch("scraper._cache_path", side_effect=fake_cache_path), \
+         mock.patch("scraper._is_fresh", return_value=False), \
+         mock.patch("scraper.asyncio.run") as mock_run:
+        mock_run.return_value = pd.DataFrame([{
+            "Player": "P", "Squad": "S", "Pos": "FW",
+            "Min": 900.0, "xG": 0.5, "xA": 0.3, "season": "2023-24",
+        }])
+        scrape_understat_league("LaLiga", 2023, "2023-24")
+    assert captured.get("key") == expected_key, \
+        f"Expected cache key '{expected_key}', got '{captured.get('key')}'"
+
+
+def test_understat_cache_hit(tmp_path, monkeypatch):
+    """Second call within TTL returns from cache, asyncio.run not called again."""
+    from scraper import scrape_understat_league
+    import unittest.mock as mock
+    import os
+    monkeypatch.setattr("scraper.CACHE_DIR", str(tmp_path))
+    cache_file = tmp_path / "understat_EPL_2024-25.csv"
+    pd.DataFrame([{
+        "Player": "Cached", "Squad": "City", "Pos": "FW",
+        "Min": 1800.0, "xG": 1.0, "xA": 0.5, "season": "2024-25",
+    }]).to_csv(cache_file, index=False)
+    def fake_cache_path(key):
+        return str(tmp_path / f"{key}.csv")
+    with mock.patch("scraper._cache_path", side_effect=fake_cache_path), \
+         mock.patch("scraper._is_fresh", return_value=True), \
+         mock.patch("scraper.asyncio.run") as mock_run:
+        df = scrape_understat_league("EPL", 2024, "2024-25")
+        mock_run.assert_not_called()
+    assert len(df) == 1
+    assert df.iloc[0]["Player"] == "Cached"
+
+
+def test_run_understat_all_leagues():
+    """run_understat_scrapers() calls scrape_understat_league for all 5 leagues x 2 seasons."""
+    from scraper import run_understat_scrapers
+    import unittest.mock as mock
+    call_args = []
+    def fake_scrape(league, season_year, season_label):
+        call_args.append((league, season_year, season_label))
+        return pd.DataFrame([{
+            "Player": "P", "Squad": "S", "Pos": "FW",
+            "Min": 900.0, "xG": 0.5, "xA": 0.3, "season": season_label,
+        }])
+    with mock.patch("scraper.scrape_understat_league", side_effect=fake_scrape):
+        result = run_understat_scrapers()
+    leagues_called = {a[0] for a in call_args}
+    seasons_called = {a[2] for a in call_args}
+    assert leagues_called == {"EPL", "LaLiga", "Bundesliga", "SerieA", "Ligue1"}, \
+        f"Expected 5 leagues, got {leagues_called}"
+    assert seasons_called == {"2023-24", "2024-25"}, \
+        f"Expected 2 seasons, got {seasons_called}"
+    assert len(call_args) == 10, f"Expected 10 calls (5x2), got {len(call_args)}"
+    assert isinstance(result, dict)
+    for league in ["EPL", "LaLiga", "Bundesliga", "SerieA", "Ligue1"]:
+        assert league in result
+        assert "2023-24" in result[league]
+        assert "2024-25" in result[league]

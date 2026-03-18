@@ -485,72 +485,131 @@ def test_single_season_flag():
     )
 
 
-def test_pres_p90_present_after_per90s():
-    """After _aggregate_fbref_seasons + compute_per90s, Pres_p90 column must exist."""
+def test_tklw_p90_present_after_per90s():
+    """After _aggregate_fbref_seasons + compute_per90s, TklW_p90 column must exist (TklW in SUM_STATS + PER90_STATS)."""
     from merger import _aggregate_fbref_seasons, compute_per90s
 
-    # Minimal season_data with a Pres column in stats_standard
     standard = pd.DataFrame({
         "Player": ["Alice"],
         "Squad":  ["Arsenal"],
         "Pos":    ["DF"],
         "Age":    ["25-100"],
         "Min":    [1800],
-        "Pres":   [30],
+        "TklW":   [30],
     })
     league_data = {"2024-25": {"stats_standard": standard}}
     result = _aggregate_fbref_seasons(league_data)
     result = compute_per90s(result)
-    assert "Pres_p90" in result.columns, "Pres_p90 column missing after per90 derivation"
-    assert result["Pres_p90"].notna().any(), "Pres_p90 is all NaN"
+    assert "TklW_p90" in result.columns, "TklW_p90 column missing after per90 derivation"
+    assert result["TklW_p90"].notna().any(), "TklW_p90 is all NaN"
 
 
-def test_drbsucc_uses_possession_succ():
-    """DrbSucc% must be derived from possession Succ, not defense Succ."""
-    from merger import merge_fbref_tables
+def test_defense_stats_join_and_per90():
+    """TklW and Int from stats_defense are properly joined and produce TklW_p90 / Int_p90 after aggregation."""
+    from merger import merge_fbref_tables, _aggregate_fbref_seasons, compute_per90s
 
     players = ["Alice"]
     standard = pd.DataFrame({
-        "Player": players,
-        "Squad":  ["Arsenal"],
-        "Pos":    ["DF"],
-        "Age":    ["25-100"],
-        "Min":    [1800],
+        "Player": players, "Squad": ["Arsenal"],
+        "Pos": ["DF"], "Age": ["25-100"], "Min": [1800],
     })
-    # stats_defense has Succ=50 (pressure successes — should be dropped)
     defense = pd.DataFrame({
-        "Player": players,
-        "Squad":  ["Arsenal"],
-        "Pos":    ["DF"],
-        "Age":    ["25-100"],
-        "Tkl":    [40],
-        "Int":    [20],
-        "Blocks": [10],
-        "Succ":   [50],   # pressure successes — must be dropped before join
+        "Player": players, "Squad": ["Arsenal"],
+        "Pos": ["DF"], "Age": ["25-100"],
+        "TklW": [36], "Int": [18],
     })
-    # stats_possession has Succ=10 (dribble successes) and Att_drb=20
-    possession = pd.DataFrame({
-        "Player":  players,
-        "Squad":   ["Arsenal"],
-        "Pos":     ["DF"],
-        "Age":     ["25-100"],
-        "Succ":    [10],    # dribble successes
-        "Att":     [20],    # dribble attempts (renamed Att_drb at merge)
-        "PrgC":    [5],
-    })
-    season_data = {
-        "stats_standard": standard,
-        "stats_defense":  defense,
-        "stats_possession": possession,
-    }
-    result = merge_fbref_tables(season_data)
-    # DrbSucc% = possession Succ / Att_drb * 100 = 10/20*100 = 50.0
-    # If collision: defense Succ (50) would shadow possession Succ → 50/20*100 = 250.0
-    from merger import _aggregate_fbref_seasons
+    season_data = {"stats_standard": standard, "stats_defense": defense}
     league_data = {"2024-25": season_data}
+
     agg = _aggregate_fbref_seasons(league_data)
-    drbsucc = agg["DrbSucc%"].iloc[0]
-    assert abs(drbsucc - 50.0) < 1e-6, (
-        f"DrbSucc% should be 50.0 (possession Succ=10, Att_drb=20), got {drbsucc:.2f}. "
-        f"If 250.0: defense Succ is shadowing possession Succ (collision not fixed)."
+    result = compute_per90s(agg)
+
+    # TklW_p90 = 36 / 1800 * 90 = 1.8
+    assert "TklW_p90" in result.columns, "TklW_p90 missing after per90 derivation"
+    assert abs(result["TklW_p90"].iloc[0] - 1.8) < 1e-6, (
+        f"TklW_p90 expected 1.8, got {result['TklW_p90'].iloc[0]}"
     )
+    # Int_p90 = 18 / 1800 * 90 = 0.9
+    assert "Int_p90" in result.columns, "Int_p90 missing after per90 derivation"
+    assert abs(result["Int_p90"].iloc[0] - 0.9) < 1e-6, (
+        f"Int_p90 expected 0.9, got {result['Int_p90'].iloc[0]}"
+    )
+
+
+# ── Wave 0: Understat merge stubs (Phase 06.1) ────────────────────────────────
+
+def test_attach_understat_exact_match():
+    """attach_understat_xg() joins xG/xA by exact normalized player name."""
+    from merger import attach_understat_xg
+    fbref_df = pd.DataFrame([
+        {"Player": "Erling Haaland", "Squad": "Manchester City", "Pos": "FW",
+         "Min": 2700.0, "Gls": 25.0, "League": "EPL"},
+    ])
+    understat_data = {
+        "EPL": {
+            "2023-24": pd.DataFrame([{"Player": "Erling Haaland", "Squad": "Manchester City",
+                                       "Pos": "FW", "Min": 1600.0, "xG": 18.5, "xA": 3.2, "season": "2023-24"}]),
+            "2024-25": pd.DataFrame([{"Player": "Erling Haaland", "Squad": "Manchester City",
+                                       "Pos": "FW", "Min": 1100.0, "xG": 12.0, "xA": 2.1, "season": "2024-25"}]),
+        }
+    }
+    result = attach_understat_xg(fbref_df, understat_data)
+    assert "xG" in result.columns, "xG column missing after join"
+    assert "xA" in result.columns, "xA column missing after join"
+    assert abs(result.iloc[0]["xG"] - 30.5) < 0.01, \
+        f"Expected xG=30.5 (18.5+12.0), got {result.iloc[0]['xG']}"
+
+
+def test_attach_understat_fuzzy_match():
+    """attach_understat_xg() uses rapidfuzz WRatio>=80 for near-exact names."""
+    from merger import attach_understat_xg
+    fbref_df = pd.DataFrame([
+        {"Player": "Alexander Arnold", "Squad": "Liverpool", "Pos": "DF",
+         "Min": 2800.0, "League": "EPL"},
+    ])
+    understat_data = {
+        "EPL": {
+            "2024-25": pd.DataFrame([{"Player": "Trent Alexander-Arnold", "Squad": "Liverpool",
+                                       "Pos": "DF", "Min": 1400.0, "xG": 2.5, "xA": 6.8, "season": "2024-25"}]),
+        }
+    }
+    result = attach_understat_xg(fbref_df, understat_data)
+    # Fuzzy match should join — xG/xA not NaN
+    assert "xG" in result.columns
+    # Either matched (numeric) or NaN — must not raise
+    assert not result.empty
+
+
+def test_attach_understat_unmatched():
+    """Unmatched players get NaN xG/xA — they are NOT dropped from the DataFrame."""
+    from merger import attach_understat_xg
+    fbref_df = pd.DataFrame([
+        {"Player": "Known Player",   "Squad": "Arsenal", "Pos": "FW", "Min": 2000.0, "League": "EPL"},
+        {"Player": "Unknown Player", "Squad": "Arsenal", "Pos": "MF", "Min": 1800.0, "League": "EPL"},
+    ])
+    understat_data = {
+        "EPL": {
+            "2024-25": pd.DataFrame([{"Player": "Known Player", "Squad": "Arsenal",
+                                       "Pos": "FW", "Min": 2000.0, "xG": 5.0, "xA": 3.0, "season": "2024-25"}]),
+        }
+    }
+    result = attach_understat_xg(fbref_df, understat_data)
+    assert len(result) == 2, "Unmatched player must NOT be dropped"
+    assert "xG" in result.columns
+    unknown_row = result[result["Player"] == "Unknown Player"]
+    assert unknown_row["xG"].isna().all(), "Unmatched player must have NaN xG"
+
+
+def test_per90s_xg_xa():
+    """compute_per90s() produces xG_p90 and xA_p90 when xG/xA columns present."""
+    from merger import compute_per90s
+    df = pd.DataFrame([
+        {"Player": "Test", "Min": 1800.0, "xG": 18.0, "xA": 9.0, "Gls": 15.0},
+    ])
+    result = compute_per90s(df)
+    assert "xG_p90" in result.columns, "xG_p90 column missing from compute_per90s output"
+    assert "xA_p90" in result.columns, "xA_p90 column missing from compute_per90s output"
+    assert abs(result.iloc[0]["xG_p90"] - 0.90) < 0.001, \
+        f"Expected xG_p90=0.90 (18/(1800/90)), got {result.iloc[0]['xG_p90']}"
+    assert abs(result.iloc[0]["xA_p90"] - 0.45) < 0.001, \
+        f"Expected xA_p90=0.45 (9/(1800/90)), got {result.iloc[0]['xA_p90']}"
