@@ -11,7 +11,7 @@ import re
 import time
 import asyncio
 import requests
-from playwright.sync_api import sync_playwright
+import nodriver as uc
 import pandas as pd
 from curl_cffi import requests as cf_requests
 from bs4 import BeautifulSoup, Comment
@@ -25,6 +25,7 @@ from config import (
     FBREF_LEAGUES, FBREF_TABLES, FBREF_SEASONS, FBREF_RATE_MIN, FBREF_RATE_MAX,
     FBREF_BACKOFF_SEQUENCE, FBREF_TABLE_URL_SEGMENTS, FBREF_MIN_MINUTES,
     build_fbref_url,
+    UNDERSTAT_LEAGUE_NAMES,
 )
 
 CACHE_DIR    = os.path.join(os.path.dirname(__file__), "cache")
@@ -68,38 +69,35 @@ def _fbref_cache_path(league: str, table: str, season: str) -> str:
 
 # ── FBref HTTP helpers ────────────────────────────────────────────────────────
 
+
 def _do_playwright_get(url: str) -> str:
     """
-    Launch headless Chromium, navigate to url, wait for a table element, return full page HTML.
+    Navigate the persistent nodriver Chrome session to url, return page HTML.
+
+    nodriver uses the real Chrome binary without setting navigator.webdriver or any
+    automation markers, making it undetectable to Cloudflare Bot Management.
+    A single browser instance is reused across all requests to avoid hitting the
+    macOS open-file-descriptor limit when scraping 90+ pages.
 
     This is the thin inner wrapper called by _playwright_fetch. Isolated here so tests can
-    monkeypatch it without needing to stub the full sync_playwright context manager.
-
-    Args:
-        url: Full URL to fetch.
-
-    Returns:
-        Full page HTML string after JS execution.
+    monkeypatch it without launching a real browser.
     """
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(
-            viewport={"width": 1920, "height": 1080},
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            ),
-        )
-        page = context.new_page()
-        page.goto(url, wait_until="domcontentloaded", timeout=60000)
+    global _uc_browser
+
+    async def _fetch() -> str:
+        browser = await uc.start(headless=False)
         try:
-            page.wait_for_selector("table", timeout=30000)
-        except Exception:
-            pass  # proceed; let _extract_fbref_table raise ValueError on missing table
-        html = page.content()
-        browser.close()
-    return html
+            page = await asyncio.wait_for(browser.get(url), timeout=60)
+            await asyncio.sleep(12)  # allow Cloudflare challenge + full page to load
+            return await page.get_content()
+        finally:
+            try:
+                browser.stop()
+            except Exception:
+                pass
+            await asyncio.sleep(2)  # let OS release file descriptors before next launch
+
+    return uc.loop().run_until_complete(_fetch())
 
 
 def _playwright_fetch(url: str) -> str:
@@ -188,16 +186,48 @@ def _extract_fbref_table(html: str, table_id: str) -> pd.DataFrame:
             f"The page structure may have changed or the wrong URL was requested."
         )
 
-    # Parse with header=1 to use the stat-name row (row index 1) as column headers,
-    # skipping the group-label row (row index 0).
-    df = pd.read_html(str(table), header=1)[0]
-
-    # If columns are still tuples (MultiIndex survived), flatten them.
-    if isinstance(df.columns[0], tuple):
-        df.columns = [
-            col[1] if (col[1] and not str(col[1]).startswith("Unnamed")) else col[0]
-            for col in df.columns
+    def _flatten_multiindex(raw_df: pd.DataFrame) -> pd.DataFrame:
+        """Flatten MultiIndex columns produced by pd.read_html(header=[0,1])."""
+        raw_df.columns = [
+            col[1] if (isinstance(col, tuple) and col[1]
+                       and not str(col[1]).startswith("Unnamed")) else (
+                col[0] if isinstance(col, tuple) else col
+            )
+            for col in raw_df.columns
         ]
+        if "Rk" in raw_df.columns:
+            raw_df = raw_df[raw_df["Rk"] != "Rk"].reset_index(drop=True)
+        return raw_df
+
+    table_html = str(table)
+
+    # Strategy: try header=[0,1] first (multi-level — captures Expected/Progression sections).
+    # Fall back to header=1 (single-level) if multi-level parse fails or gives fewer cols.
+    df = None
+    try:
+        from io import StringIO as _SIO
+        raw = pd.read_html(_SIO(table_html), header=[0, 1])[0]
+        df = _flatten_multiindex(raw)
+    except Exception:
+        pass
+
+    # Try header=1 and keep whichever gives more columns
+    try:
+        from io import StringIO as _SIO
+        raw1 = pd.read_html(_SIO(table_html), header=1)[0]
+        if isinstance(raw1.columns[0], tuple):
+            raw1 = _flatten_multiindex(raw1)
+        if "Rk" in raw1.columns:
+            raw1 = raw1[raw1["Rk"] != "Rk"].reset_index(drop=True)
+        if df is None or len(raw1.columns) > len(df.columns):
+            df = raw1
+    except Exception:
+        pass
+
+    if df is None:
+        raise ValueError(
+            f"FBref table '{table_id}' could not be parsed with any header strategy."
+        )
 
     # Remove repeated header rows (FBref repeats the header every ~20 rows).
     if "Rk" in df.columns:
@@ -223,7 +253,7 @@ def scrape_fbref_stat(
 
     Rate limiting (DATA-06):
         Waits random.uniform(FBREF_RATE_MIN, FBREF_RATE_MAX) seconds before
-        each HTTP request. Uses _fetch_with_backoff for 429 handling.
+        each HTTP request. Uses _playwright_fetch for Cloudflare bypass and backoff.
 
     Min-minutes filter (DATA-07):
         Removes players with fewer than FBREF_MIN_MINUTES (900) minutes
@@ -260,7 +290,7 @@ def scrape_fbref_stat(
     # Build URL and table_id
     url = build_fbref_url(league, table_type, season_label)
     comp_id  = FBREF_LEAGUES[league]["comp_id"]
-    table_id = f"{table_type}_{comp_id}"   # e.g. "stats_standard_9"
+    table_id = table_type   # FBref no longer appends comp_id suffix (e.g. "stats_standard", not "stats_standard_9")
 
     print(f"  [fetch] FBref {league} {table_type} {season_label}")
     print(f"    URL: {url}")
@@ -312,18 +342,182 @@ def scrape_fbref_stat(
     return df
 
 
+_FDCO_LEAGUE_CODES = {
+    "EPL":        "E0",
+    "LaLiga":     "SP1",
+    "Bundesliga": "D1",
+    "SerieA":     "I1",
+    "Ligue1":     "F1",
+}
+
+# Minor name fixes: football-data.co.uk → FBref squad names
+# Only add entries that differ; most names are identical or close enough for fuzzy matching.
+_FDCO_TEAM_NAME_MAP = {
+    # EPL
+    "Man United":      "Manchester Utd",
+    "Man City":        "Manchester City",
+    "Leeds":           "Leeds United",
+    "Leicester":       "Leicester City",
+    "Wolves":          "Wolverhampton Wanderers",
+    "Newcastle":       "Newcastle Utd",
+    "Nottingham Forest": "Nott'ham Forest",
+    "West Brom":       "West Brom",
+    "Norwich":         "Norwich City",
+    "Brentford":       "Brentford",
+    # LaLiga (generally fine)
+    "Ath Bilbao":      "Athletic Club",
+    "Ath Madrid":      "Atlético Madrid",
+    "Betis":           "Real Betis",
+    "La Coruna":       "Deportivo de La Coruña",
+    "Espanol":         "Espanyol",
+    "Sociedad":        "Real Sociedad",
+    "Vallecano":       "Rayo Vallecano",
+    # Bundesliga
+    "Greuther Furth":  "Greuther Fürth",
+    "Leverkusen":      "Bayer Leverkusen",
+    "Ein Frankfurt":   "Eintracht Frankfurt",
+    "Hertha":          "Hertha BSC",
+    "Koln":            "Köln",
+    "Fortuna Dusseldorf": "Fortuna Düsseldorf",
+    "Nurnberg":        "Nürnberg",
+    "Schalke 04":      "Schalke 04",
+    "Paderborn":       "Paderborn 07",
+    "Dusseldorf":      "Fortuna Düsseldorf",
+    # SerieA
+    "Hellas Verona":   "Hellas Verona",
+    "Inter":           "Internazionale",
+    "Verona":          "Hellas Verona",
+    # Ligue1
+    "Paris SG":        "Paris S-G",
+    "St Etienne":      "Saint-Étienne",
+    "Marseille":       "Marseille",
+}
+
+
+def _standings_from_football_data(league: str, season: str) -> pd.DataFrame:
+    """
+    Compute league standings from football-data.co.uk match results CSV.
+
+    No Cloudflare — plain CSV download via requests. Used as fallback when
+    FBref standings scraping fails (Lit migration / bot protection).
+
+    Args:
+        league: League key, e.g. "EPL"
+        season: Short season label, e.g. "2024-25"
+
+    Returns:
+        DataFrame with columns ['Squad', 'Rk'] (Rk 1 = top of table).
+
+    Raises:
+        RuntimeError: If download fails or league/season not supported.
+    """
+    league_code = _FDCO_LEAGUE_CODES.get(league)
+    if not league_code:
+        raise RuntimeError(f"No football-data.co.uk code for league: {league}")
+
+    # Convert "2024-25" → "2425"
+    parts = season.split("-")
+    if len(parts) != 2:
+        raise RuntimeError(f"Unexpected season format: {season}")
+    season_code = parts[0][-2:] + parts[1][-2:]  # "2024-25" → "2425"
+
+    url = f"https://www.football-data.co.uk/mmz4281/{season_code}/{league_code}.csv"
+    print(f"  [standings-fdco] Downloading {url}")
+
+    try:
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
+    except Exception as e:
+        raise RuntimeError(f"football-data.co.uk download failed for {league} {season}: {e}")
+
+    from io import StringIO
+    try:
+        df_matches = pd.read_csv(StringIO(resp.text))
+    except Exception as e:
+        raise RuntimeError(f"Failed to parse football-data.co.uk CSV: {e}")
+
+    required = {"HomeTeam", "AwayTeam", "FTR"}
+    if not required.issubset(df_matches.columns):
+        raise RuntimeError(
+            f"football-data.co.uk CSV missing columns {required - set(df_matches.columns)}"
+        )
+
+    # Drop rows without a result (mid-season or postponed)
+    df_matches = df_matches.dropna(subset=["FTR", "HomeTeam", "AwayTeam"])
+    df_matches = df_matches[df_matches["FTR"].isin(["H", "A", "D"])]
+
+    # Goal columns: FTHG / FTAG (Full Time Home/Away Goals)
+    has_goals = "FTHG" in df_matches.columns and "FTAG" in df_matches.columns
+    if has_goals:
+        df_matches["FTHG"] = pd.to_numeric(df_matches["FTHG"], errors="coerce").fillna(0)
+        df_matches["FTAG"] = pd.to_numeric(df_matches["FTAG"], errors="coerce").fillna(0)
+
+    teams: dict = {}
+
+    def _team(name: str) -> dict:
+        if name not in teams:
+            teams[name] = {"W": 0, "D": 0, "L": 0, "GF": 0, "GA": 0}
+        return teams[name]
+
+    for _, row in df_matches.iterrows():
+        home = row["HomeTeam"]
+        away = row["AwayTeam"]
+        result = row["FTR"]
+        hg = int(row["FTHG"]) if has_goals else 0
+        ag = int(row["FTAG"]) if has_goals else 0
+
+        _team(home)["GF"] += hg
+        _team(home)["GA"] += ag
+        _team(away)["GF"] += ag
+        _team(away)["GA"] += hg
+
+        if result == "H":
+            _team(home)["W"] += 1
+            _team(away)["L"] += 1
+        elif result == "A":
+            _team(away)["W"] += 1
+            _team(home)["L"] += 1
+        else:  # D
+            _team(home)["D"] += 1
+            _team(away)["D"] += 1
+
+    rows = []
+    for team_name, stats in teams.items():
+        pts = stats["W"] * 3 + stats["D"]
+        gd  = stats["GF"] - stats["GA"]
+        mapped = _FDCO_TEAM_NAME_MAP.get(team_name, team_name)
+        rows.append({"Squad": mapped, "Pts": pts, "GD": gd, "GF": stats["GF"]})
+
+    standings = (
+        pd.DataFrame(rows)
+        .sort_values(["Pts", "GD", "GF"], ascending=False)
+        .reset_index(drop=True)
+    )
+    standings["Rk"] = standings.index + 1
+    return standings[["Squad", "Rk"]]
+
+
 def scrape_fbref_standings(league: str = "EPL", season: str = "2024-25") -> pd.DataFrame:
     """
-    Scrape EPL league standings from FBref. Returns DataFrame with Squad, Rk columns.
+    Get league standings for the given league and season.
+    Returns DataFrame with Squad and Rk columns.
     Cached at cache/fbref_{league}_standings_{season}.csv with 7-day TTL.
-    Reuses _extract_fbref_table and _fetch_with_backoff from scrape_fbref_stat.
+
+    Source priority:
+    1. football-data.co.uk CSV (instant, no browser, all 5 supported leagues)
+    2. FBref (Playwright browser) — fallback for leagues not in _FDCO_LEAGUE_CODES
     """
     cache_path = _fbref_cache_path(league, "standings", season)
     if _is_fresh(cache_path):
         return pd.read_csv(cache_path)
 
-    # Build standings URL: same base as stats but no table_type segment
-    # e.g. https://fbref.com/en/comps/9/2024-2025/2024-2025-Premier-League-Stats
+    # Primary: football-data.co.uk — instant plain HTTP, no Cloudflare
+    if league in _FDCO_LEAGUE_CODES:
+        df = _standings_from_football_data(league, season)
+        df.to_csv(cache_path, index=False)
+        return df
+
+    # Fallback: FBref via Playwright (only for leagues not on football-data.co.uk)
     league_cfg = FBREF_LEAGUES[league]
     comp_id = league_cfg["comp_id"]
     slug    = league_cfg["slug"]
@@ -333,42 +527,50 @@ def scrape_fbref_standings(league: str = "EPL", season: str = "2024-25") -> pd.D
     url = f"https://fbref.com/en/comps/{comp_id}/{season_long}/{season_long}-{slug}-Stats"
 
     html = _playwright_fetch(url)
+    df   = None
 
-    # Try the known table ID first; fall back to scanning all comment nodes
+    # Try known table ID, then comment scan, then direct DOM scan
     table_id = f"results{season_long}{comp_id}1_home"
     try:
         df = _extract_fbref_table(html, table_id)
-    except (ValueError, Exception):
-        df = None
+    except Exception:
+        pass
 
     if df is None or df.empty or "Rk" not in df.columns:
-        # Fallback: scan all HTML comment nodes for a table with Rk + Squad columns
-        from bs4 import BeautifulSoup, Comment
         soup = BeautifulSoup(html, "lxml")
-        df = None
         for comment in soup.find_all(string=lambda t: isinstance(t, Comment)):
             if "<table" not in comment:
                 continue
             try:
-                tables = pd.read_html(str(comment), header=0)
-                for t in tables:
+                from io import StringIO as _SIO
+                for t in pd.read_html(_SIO(str(comment)), header=0):
                     if "Rk" in t.columns and "Squad" in t.columns:
                         df = t
                         break
             except Exception:
-                continue
+                pass
             if df is not None:
                 break
+
+    if df is None or df.empty or "Rk" not in df.columns:
+        soup = BeautifulSoup(html, "lxml")
+        for table_tag in soup.find_all("table"):
+            try:
+                from io import StringIO as _SIO
+                t = pd.read_html(_SIO(str(table_tag)), header=0)[0]
+                if "Rk" in t.columns and "Squad" in t.columns and len(t) >= 10:
+                    df = t
+                    break
+            except Exception:
+                pass
 
     if df is None or df.empty:
         raise RuntimeError(f"Could not find standings table for {league} {season}")
 
-    # Keep only Rk and Squad; drop summary rows (Rk is non-numeric in separator rows)
     df = df[["Rk", "Squad"]].copy()
     df["Rk"] = pd.to_numeric(df["Rk"], errors="coerce")
     df = df.dropna(subset=["Rk"]).reset_index(drop=True)
     df["Rk"] = df["Rk"].astype(int)
-
     df.to_csv(cache_path, index=False)
     return df
 
@@ -420,6 +622,14 @@ def run_fbref_scrapers(
                 results[league][season][table_type] = df
                 status = f"{len(df)} rows" if not df.empty else "EMPTY"
                 print(f"    {table_type}: {status}")
+
+        # Pre-cache standings so Streamlit never launches a browser during load_data()
+        current_season = seasons[-1]
+        try:
+            scrape_fbref_standings(league, current_season)
+            print(f"  [standings] {league} {current_season} cached")
+        except Exception as e:
+            print(f"  [standings] {league} {current_season} failed (league_position will be NaN): {e}")
 
     return results
 
@@ -482,6 +692,82 @@ async def _fetch_understat_season(season_year: int, season_label: str) -> pd.Dat
     return pd.DataFrame(rows)
 
 
+async def _fetch_understat_league(league: str, season_year: int, season_label: str) -> pd.DataFrame:
+    """
+    Fetch Understat player data for one league+season.
+    Generalized from _fetch_understat_season (EPL-only) to support all 5 leagues.
+
+    Args:
+        league:       Project league key, e.g. "EPL", "LaLiga"
+        season_year:  Understat start year, e.g. 2024 (= 2024-25 season)
+        season_label: Short label, e.g. "2024-25"
+
+    Returns:
+        DataFrame with columns: Player, Squad, Pos, Min, xG, xA, season
+    """
+    import aiohttp
+    from understat import Understat
+
+    understat_slug = UNDERSTAT_LEAGUE_NAMES[league]
+
+    async with aiohttp.ClientSession() as session:
+        understat = Understat(session)
+        players = await understat.get_league_players(understat_slug, season_year)
+
+    rows = []
+    for p in players:
+        rows.append({
+            "Player":  p.get("player_name", ""),
+            "Squad":   p.get("team_title", ""),
+            "Pos":     _map_understat_pos(p.get("position", "")),
+            "Min":     float(p.get("time",  0) or 0),
+            "xG":      float(p.get("xG",    0) or 0),
+            "xA":      float(p.get("xA",    0) or 0),
+            "season":  season_label,
+        })
+    return pd.DataFrame(rows)
+
+
+def scrape_understat_league(league: str, season_year: int, season_label: str) -> pd.DataFrame:
+    """
+    Scrape Understat xG/xA for one league+season with 7-day cache.
+
+    Cache naming convention (DATA-05):
+        cache/understat_{league}_{season_label}.csv
+        e.g. cache/understat_EPL_2024-25.csv
+             cache/understat_LaLiga_2023-24.csv
+
+    Rate limiting: no explicit delay needed — Understat is a single JSON endpoint
+    with no known bot protection. Polite usage already covered by aiohttp session.
+
+    Args:
+        league:       Project league key, e.g. "EPL", "LaLiga"
+        season_year:  Understat start year integer, e.g. 2024
+        season_label: Short season label, e.g. "2024-25"
+
+    Returns:
+        DataFrame with Player, Squad, Pos, Min, xG, xA, season columns.
+        Returns empty DataFrame on failure (logs warning).
+    """
+    cache_key = f"understat_{league}_{season_label}"
+    path = _cache_path(cache_key)
+
+    if _is_fresh(path):
+        print(f"  [cache] {cache_key}")
+        return pd.read_csv(path)
+
+    print(f"  [fetch] Understat {league} {season_label}")
+    try:
+        df = asyncio.run(_fetch_understat_league(league, season_year, season_label))
+        if not df.empty:
+            df.to_csv(path, index=False)
+            print(f"    -> {len(df)} players cached to {path}")
+        return df
+    except Exception as e:
+        print(f"  [warn] Understat {league} {season_label} failed: {e}")
+        return pd.DataFrame()
+
+
 def scrape_understat_season(season_year: int, season_label: str) -> pd.DataFrame:
     cache_key = f"understat_{season_label.replace('-', '')}"
     path = _cache_path(cache_key)
@@ -501,18 +787,37 @@ def scrape_understat_season(season_year: int, season_label: str) -> pd.DataFrame
         return pd.DataFrame()
 
 
-def run_understat_scrapers() -> dict:
+def run_understat_scrapers(leagues=None, seasons=None) -> dict:
     """
-    DEPRECATED — replaced by run_fbref_scrapers() in Phase 1.
-    Returns empty dict. app.py compatibility shim — will be removed in Phase 2
-    when merger.py is rewritten to consume FBref data directly.
+    Scrape Understat xG/xA for all leagues x seasons.
+
+    Args:
+        leagues: List of league keys (default: all 5 from FBREF_LEAGUES)
+        seasons: List of season labels (default: FBREF_SEASONS = ["2023-24", "2024-25"])
+
+    Returns:
+        Nested dict: {league: {season_label: DataFrame}}
+        Each DataFrame has Player, Squad, Pos, Min, xG, xA, season columns.
     """
-    print(
-        "[warn] run_understat_scrapers() is deprecated — "
-        "FBref scraper now provides all stats. "
-        "This stub exists for app.py backward compatibility."
-    )
-    return {}
+    from config import FBREF_LEAGUES, FBREF_SEASONS, SEASONS as SEASON_YEARS
+
+    if leagues is None:
+        leagues = list(FBREF_LEAGUES.keys())
+    if seasons is None:
+        seasons = FBREF_SEASONS
+
+    results = {}
+    for league in leagues:
+        print(f"\n[Understat] League: {league}")
+        results[league] = {}
+        for season_label in seasons:
+            season_year = SEASON_YEARS[season_label]
+            df = scrape_understat_league(league, season_year, season_label)
+            results[league][season_label] = df
+            status = f"{len(df)} players" if not df.empty else "EMPTY"
+            print(f"  {season_label}: {status}")
+
+    return results
 
 
 # ── API-Football ──────────────────────────────────────────────────────────────
