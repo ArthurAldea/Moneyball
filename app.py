@@ -1044,7 +1044,7 @@ if df.empty:
 
 # ── Main area tabs ─────────────────────────────────────────────────────────────
 
-tab_shortlist, tab_methodology = st.tabs(["SHORTLIST", "METHODOLOGY"])
+tab_shortlist, tab_methodology, tab_guide = st.tabs(["SHORTLIST", "METHODOLOGY", "HOW TO USE"])
 
 with tab_methodology:
     st.markdown(
@@ -1150,6 +1150,112 @@ The Scout Score vs Market Value scatter chart plots every player in the current 
 Points are colored by position group. When players are selected from the shortlist, they are highlighted with distinct markers and labels on the chart.
 
 Use scroll to zoom and drag to pan within the chart.
+""")
+
+with tab_guide:
+    st.markdown(
+        "<div class='section-header' style='font-size:20px;padding:8px 16px;margin-bottom:24px;'>"
+        "HOW TO USE</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("### Quick Start")
+    st.markdown("""
+1. Use the **sidebar filters** to narrow the player pool by league, position, age, club, market value, and season.
+2. The **shortlist table** ranks every qualifying player by Age-Weighted UV Score — highest first.
+3. **Click any row** to open a full player profile below the table.
+4. **Select 2–3 rows** to enter comparison mode and view players side by side.
+""")
+
+    st.markdown("---")
+
+    st.markdown("### Sidebar Filters")
+    st.markdown("""
+| Filter | How it works |
+|---|---|
+| **PLAYER SEARCH** | Type any part of a player's name — the shortlist filters in real time (case-insensitive). Clear the field to restore all rows. |
+| **LEAGUE** | Multi-select. Defaults to all five leagues. Deselecting a league removes all players from that league and updates the Club dropdown automatically. |
+| **POSITION** | Multi-select: GK, DF, MF, FW. Deselecting a position removes it from the shortlist and all charts. |
+| **AGE RANGE** | Drag either handle to set a minimum and maximum age. |
+| **CLUB** | Multi-select. The available clubs update dynamically based on which leagues are selected. Leave blank to include all clubs. |
+| **VALUE (€M)** | Drag to set a market value range in millions of euros. |
+| **SEASON** | Include data from 2023-24, 2024-25, or both. When both are selected, a player's stats are aggregated across seasons. |
+| **Reset Filters** | Clears all filters and returns to the full player pool. |
+""")
+
+    st.markdown("---")
+
+    st.markdown("### Shortlist Table")
+    st.markdown("""
+The shortlist ranks all players matching your current filters by **Age-Weighted UV Score** (descending) by default. You can click any column header to re-sort.
+
+**Opening a player profile:**
+Click any row in the table to open the full player profile below the shortlist. The selected row is highlighted.
+
+**Entering comparison mode:**
+Click a second or third row while the first is already selected. The profile area switches to comparison mode, showing all selected players side by side. You can select up to **3 players** at once — selecting a 4th will show a warning and ignore the extra selection.
+
+**Clearing a selection:**
+Click the selected row again to deselect it, or use Reset Filters to clear everything.
+
+**Hover tooltips:**
+Hover over any column header to see a plain-English explanation of what that column measures and how it is calculated.
+""")
+
+    st.markdown("---")
+
+    st.markdown("### Player Profile")
+    st.markdown("""
+The player profile opens below the shortlist when you click a row. It has four sections:
+
+**Header block**
+Name, age, nationality, club, league, position, and current market value at a glance.
+
+**Radar chart (left)**
+A filled polygon showing the player's five pillar scores — Attacking, Progression, Creation, Defense, Retention — overlaid on the grey median polygon for their position group across all five leagues. A larger polygon means the player outperforms peers across those pillars. A lopsided polygon reveals specialisation.
+
+**Per-90 stat table (right)**
+Every underlying stat grouped by pillar. Four columns: stat name, raw season total, per-90 rate, and a colour-coded percentile bar (red = bottom third, amber = middle third, green = top third) relative to cross-league position peers.
+
+**Similar Players panel**
+The five most statistically similar players by cosine similarity on the five pillar scores, drawn from the same position group across all leagues. Each card shows the player's club, league, age, market value, and Age-Weighted UV Score.
+
+→ **Click any similar player card** to jump directly to that player's profile.
+""")
+
+    st.markdown("---")
+
+    st.markdown("### Comparison Mode")
+    st.markdown("""
+Select **2 or 3 players** from the shortlist table to enter comparison mode.
+
+**What changes:**
+- The header area shows one mini card per player — name, club, league, position, and market value — arranged side by side.
+- The **radar chart** overlays one filled polygon per player in distinct colours with a legend, plus the shared position-peer median in grey. Use this to see where players are stronger or weaker relative to each other and relative to their peers.
+- The **per-90 stat table** shows one column of values per player so you can compare every underlying stat directly. Each value still has a percentile bar relative to their position peer group.
+- The **scatter chart** highlights all selected players with distinct coloured markers and labels.
+- A **Similar Players** row appears for each selected player, stacked vertically.
+
+**Tip:** Comparison mode is most useful when players occupy the same position but different leagues — the normalised pillar scores and percentile bars correct for league quality, so the comparison is meaningful across EPL and Bundesliga, for example.
+""")
+
+    st.markdown("---")
+
+    st.markdown("### Scout Score vs Market Value Chart")
+    st.markdown("""
+The scatter chart at the bottom of the page plots every player in your current filtered view.
+
+- **X-axis:** Scout Score (0–100)
+- **Y-axis:** Market Value in €M (log scale)
+- **Dotted blue line:** Fair value regression line — the expected market value for a given Scout Score based on the full player pool. Players **below** the line are statistically undervalued; players **above** it are overpriced relative to their output.
+- **Coloured points:** Each position group has a distinct colour (matching the legend inside the chart).
+- **Highlighted markers:** When one or more players are selected from the shortlist, they appear as larger labelled markers on the chart.
+
+**Navigation:**
+- **Scroll** inside the chart to zoom in or out.
+- **Click and drag** to pan across the chart.
+- The **scout score slider** below the chart sets the visible x-axis range — useful for zooming in on a specific score band without losing the regression line shape.
+- The **Plotly toolbar** (appears on hover, top-right of chart) includes a zoom-box tool, a home/reset button, and a download-as-PNG option.
 """)
 
 with tab_shortlist:

@@ -339,9 +339,9 @@ def test_scatter_axes():
             assert all(v < 10_000 for v in y_vals), (
                 f"Trace '{t.name}' y-values appear to be raw EUR, not €M. Max: {max(y_vals):.2f}"
             )
-    # y-axis must NOT be log scale — linear is required
-    assert fig.layout.yaxis.type != "log", (
-        "scatter_chart yaxis.type should not be 'log' — use linear scale with €M values"
+    # y-axis must be log scale — OLS fit in log space renders as a straight diagonal on log axis
+    assert fig.layout.yaxis.type == "log", (
+        "scatter_chart yaxis.type should be 'log' — OLS in log space renders as a diagonal on log axis"
     )
 
 
