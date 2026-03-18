@@ -9,7 +9,7 @@
 | 3 | Multi-League Expansion | Complete    | 2026-03-17 | ✅ Complete |
 | 4 | Advanced Scoring | Apply team strength, league quality multiplier, and cosine similarity similar players | SCORE-04, SCORE-05, SCORE-08 | ✅ Complete |
 | 5 | 2/2 | Complete    | 2026-03-17 | Not Started |
-| 6 | Player Deep Profile | Add drill-down player profile with radar chart, full per-90 stat table with percentile bars, scatter highlight, and similar players panel | PROFILE-01, PROFILE-02, PROFILE-03, PROFILE-04, PROFILE-05 | Not Started |
+| 6 | Player Deep Profile | Add drill-down player profile with radar chart, full per-90 stat table with percentile bars, scatter highlight, similar players panel, multi-player comparison mode, and player name search filter | PROFILE-01, PROFILE-02, PROFILE-03, PROFILE-04, PROFILE-05, PROFILE-06, FILTER-07 | Not Started |
 
 ---
 
@@ -143,9 +143,16 @@ Plans:
 
 ### Phase 6: Player Deep Profile
 
-**Goal:** Implement the drill-down player profile view triggered by clicking a shortlist row, displaying the full header block, radar chart vs. position-peer median, per-90 stat table with percentile bars, scatter chart highlight, and similar players panel.
+**Goal:** Implement the drill-down player profile view triggered by clicking a shortlist row, displaying the full header block, radar chart vs. position-peer median, per-90 stat table with percentile bars, scatter chart highlight, and similar players panel. Extend the shortlist with a player name search filter and multi-player comparison mode.
 
-**Requirements:** PROFILE-01, PROFILE-02, PROFILE-03, PROFILE-04, PROFILE-05
+**Requirements:** PROFILE-01, PROFILE-02, PROFILE-03, PROFILE-04, PROFILE-05, PROFILE-06, FILTER-07
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Wave 0 test stubs + FILTER-07 (player name search) + multi-row selection
+- [ ] 06-02-PLAN.md — Single-player profile: header, radar, stat table, scatter highlight, similar players (PROFILE-01 through PROFILE-05)
+- [ ] 06-03-PLAN.md — Comparison mode: overlaid radar, per-player stat columns, multi-highlight scatter, stacked similar players (PROFILE-06)
 
 **Success Criteria:**
 1. Clicking any row in the shortlist opens the player profile view showing the header block with all required fields (name, age, nationality, club, league, position, market value).
@@ -153,3 +160,5 @@ Plans:
 3. The per-90 stat table groups stats by pillar and displays a colored percentile bar (red → amber → green) for each stat relative to cross-league position peers.
 4. The player's data point on the UV scatter chart is highlighted with a distinct marker; the rest of the selected player pool is visible as context.
 5. The Similar Players panel lists exactly five players with Player, Club, League, Age, Market Value, and Age-Weighted UV Score — each drawn from the cosine similarity computation in Phase 4.
+6. A player name search text input in the sidebar filters the shortlist in real-time (case-insensitive partial match); clearing the input restores all rows.
+7. When two or more players are selected from the shortlist, the profile view enters comparison mode: the radar chart overlays one filled polygon per player with distinct colors and a legend; the per-90 stat table shows one column per selected player; the UV scatter chart highlights all selected players with distinct markers and labels.
