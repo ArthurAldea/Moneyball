@@ -529,12 +529,19 @@ def render_single_profile(player_row: pd.Series, full_df: pd.DataFrame) -> None:
 # ── Scatter chart ──────────────────────────────────────────────────────────────
 
 
-def scatter_chart(df: pd.DataFrame, highlighted_players: list = None) -> go.Figure:
+def scatter_chart(
+    df: pd.DataFrame,
+    highlighted_players: list = None,
+    x_range: tuple = (0, 100),
+    y_range_m: tuple = (0, 200),
+) -> go.Figure:
     """
-    Scout Score vs Market Value scatter (log scale on Y).
-    X = scout_score, Y = market_value_eur (Plotly log axis).
-    OLS regression line = 'fair value' (fit in log10 space, converted back).
+    Scout Score vs Market Value scatter (linear scale on Y, values in €M).
+    X = scout_score, Y = market_value_eur / 1e6 (€M).
+    OLS regression line = 'fair value' (fit in log10(€M) space, converted back to €M).
     Points below the line: undervalued. Points above: overpriced.
+    x_range: (min, max) for x-axis (scout score).
+    y_range_m: (min, max) for y-axis in €M.
     """
     fig = go.Figure()
     df = df.copy()
@@ -548,7 +555,7 @@ def scatter_chart(df: pd.DataFrame, highlighted_players: list = None) -> go.Figu
             continue
         fig.add_trace(go.Scatter(
             x=sub["scout_score"],
-            y=sub["market_value_eur"],
+            y=sub["_mv_m"],
             mode="markers",
             name=pos,
             marker=dict(
@@ -562,23 +569,23 @@ def scatter_chart(df: pd.DataFrame, highlighted_players: list = None) -> go.Figu
                 "Club: %{customdata[1]}<br>"
                 "Position: %{customdata[2]}<br>"
                 "Scout Score: %{x:.1f}<br>"
-                "Market Value: €%{customdata[3]:.1f}M<br>"
-                "UV Score: %{customdata[4]:.1f}"
+                "Market Value: €%{y:.1f}M<br>"
+                "UV Score: %{customdata[3]:.1f}"
                 "<extra></extra>"
             ),
-            customdata=sub[["Player", "Squad", "Pos", "_mv_m", "uv_score"]].values,
+            customdata=sub[["Player", "Squad", "Pos", "uv_score"]].values,
         ))
 
-    # Regression line: fit in log10 space (correct for multiplicative MV relationships),
-    # then convert predicted log10 values back to raw EUR for the log-scale axis.
+    # Regression line: fit in log10(€M) space (correct for multiplicative MV relationships),
+    # then convert predicted log10(€M) values back to €M for the linear axis.
     if len(df) >= 2:
         x_arr = df["scout_score"].values
-        y_log = np.log10(df["market_value_eur"].values)
+        y_log = np.log10(df["_mv_m"].values)
         coeffs = np.polyfit(x_arr, y_log, 1)
-        x_range = np.linspace(x_arr.min(), x_arr.max(), 100)
-        y_line = 10 ** np.polyval(coeffs, x_range)
+        x_line_arr = np.linspace(x_arr.min(), x_arr.max(), 100)
+        y_line = 10 ** np.polyval(coeffs, x_line_arr)
         fig.add_trace(go.Scatter(
-            x=x_range,
+            x=x_line_arr,
             y=y_line,
             mode="lines",
             name="FAIR VALUE LINE",
@@ -592,10 +599,9 @@ def scatter_chart(df: pd.DataFrame, highlighted_players: list = None) -> go.Figu
             if sub.empty:
                 continue
             sub = sub.copy()
-            sub["_mv_m"] = sub["market_value_eur"] / 1_000_000
             fig.add_trace(go.Scatter(
                 x=sub["scout_score"],
-                y=sub["market_value_eur"],
+                y=sub["_mv_m"],
                 mode="markers+text",
                 name=name,
                 text=[name],
@@ -608,9 +614,8 @@ def scatter_chart(df: pd.DataFrame, highlighted_players: list = None) -> go.Figu
                 ),
                 hovertemplate=(
                     "<b>%{text}</b><br>Scout: %{x:.1f}<br>"
-                    "Value: €%{customdata:.1f}M<extra></extra>"
+                    "Value: €%{y:.1f}M<extra></extra>"
                 ),
-                customdata=sub["market_value_eur"].values / 1e6,
             ))
 
     fig.update_layout(
@@ -618,15 +623,17 @@ def scatter_chart(df: pd.DataFrame, highlighted_players: list = None) -> go.Figu
         height=480,
         xaxis=dict(
             title="SCOUT SCORE",
+            range=[x_range[0], x_range[1]],
             gridcolor="rgba(255,255,255,0.06)",
             linecolor="rgba(255,255,255,0.1)",
             title_font=dict(color="#8DA4B8", size=11),
             tickfont=dict(color="#8DA4B8"),
         ),
         yaxis=dict(
-            title="MARKET VALUE (LOG SCALE)",
-            type="log",
-            tickformat="$,.0f",
+            title="MARKET VALUE (€M)",
+            range=[y_range_m[0], y_range_m[1]],
+            ticksuffix="M",
+            tickprefix="€",
             gridcolor="rgba(255,255,255,0.06)",
             linecolor="rgba(255,255,255,0.1)",
             title_font=dict(color="#8DA4B8", size=11),
@@ -748,6 +755,23 @@ with st.sidebar:
     if not sel_seasons:
         sel_seasons = SEASON_OPTIONS
 
+    # CHART-01: Scout score x-axis range slider
+    st.markdown("<div class='section-header'>SCOUT SCORE RANGE</div>", unsafe_allow_html=True)
+    scout_range = st.slider(
+        "scout_range", min_value=0, max_value=100, value=(0, 100), step=1,
+        label_visibility="collapsed", key="scout_range",
+    )
+
+    # CHART-02: Market value y-axis range slider (€M)
+    st.markdown("<div class='section-header'>VALUE RANGE (€M)</div>", unsafe_allow_html=True)
+    _mv_plot_max = max(
+        int(np.ceil(full_df["market_value_eur"].max() / 1e7)) * 10, 200
+    ) if not full_df.empty else 200
+    mv_plot_range = st.slider(
+        "mv_plot_range", min_value=0, max_value=_mv_plot_max, value=(0, _mv_plot_max), step=1,
+        label_visibility="collapsed", key="mv_plot_range",
+    )
+
     st.divider()
     if st.button("Refresh Data"):
         st.cache_data.clear()
@@ -778,7 +802,7 @@ if df.empty:
     st.warning("NO PLAYERS MATCH CURRENT FILTERS")
     st.caption("Try widening your age range, adding more leagues, or adjusting the market value limits.")
     if st.button("Reset Filters"):
-        for key in ["sel_leagues", "sel_positions", "age_range", "sel_clubs", "mv_range", "sel_seasons", "player_search"]:
+        for key in ["sel_leagues", "sel_positions", "age_range", "sel_clubs", "mv_range", "sel_seasons", "player_search", "scout_range", "mv_plot_range"]:
             if key in st.session_state:
                 del st.session_state[key]
         st.rerun()
@@ -862,7 +886,10 @@ st.markdown(
 )
 # scatter_chart expects raw EUR market_value_eur and predicted_log_mv — use filtered df (not display_df)
 _highlighted = active_players["Player"].tolist() if not active_players.empty else []
-st.plotly_chart(scatter_chart(df, highlighted_players=_highlighted), use_container_width=True)
+st.plotly_chart(
+    scatter_chart(df, highlighted_players=_highlighted, x_range=scout_range, y_range_m=mv_plot_range),
+    use_container_width=True,
+)
 
 # DASH-07: cross-league disclaimer
 if should_show_disclaimer(sel_leagues):

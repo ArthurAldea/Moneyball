@@ -295,7 +295,7 @@ def test_css_contains_navy_theme():
 
 
 def test_scatter_axes():
-    """scatter_chart returns a go.Figure with scout_score on x, raw market_value_eur on y (log axis), and FAIR VALUE LINE trace."""
+    """scatter_chart returns a go.Figure with scout_score on x, €M values on y (linear axis), and FAIR VALUE LINE trace."""
     _require_app()
     df = make_pipeline_df(10)
     fig = scatter_chart(df)
@@ -327,17 +327,21 @@ def test_scatter_axes():
         "Scatter trace x-values should be scout_score values"
     )
 
-    # y-values for player traces are raw market_value_eur (Plotly renders log via yaxis.type="log")
+    # y-values for player traces are in €M (market_value_eur / 1e6) — linear axis
     sub_traces = [t for t in fig.data if t.name != "FAIR VALUE LINE"]
     for t in sub_traces:
         if t.y is not None and len(t.y) > 0:
             y_vals = [float(v) for v in t.y if v is not None]
-            assert all(v >= 1 for v in y_vals), (
-                f"Trace '{t.name}' y-values should be positive market values (EUR), got min: {min(y_vals):.2f}"
+            assert all(v > 0 for v in y_vals), (
+                f"Trace '{t.name}' y-values should be positive €M values, got min: {min(y_vals):.2f}"
             )
-    # y-axis must be configured as log-scale
-    assert fig.layout.yaxis.type == "log", (
-        f"scatter_chart yaxis.type should be 'log', got '{fig.layout.yaxis.type}'"
+            # €M values should be < 10000 (not raw EUR which would be > 1e6)
+            assert all(v < 10_000 for v in y_vals), (
+                f"Trace '{t.name}' y-values appear to be raw EUR, not €M. Max: {max(y_vals):.2f}"
+            )
+    # y-axis must NOT be log scale — linear is required
+    assert fig.layout.yaxis.type != "log", (
+        "scatter_chart yaxis.type should not be 'log' — use linear scale with €M values"
     )
 
 
