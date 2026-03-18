@@ -731,15 +731,13 @@ def scatter_chart(
     df: pd.DataFrame,
     highlighted_players: list = None,
     x_range: tuple = (0, 100),
-    y_range_m: tuple = (0, 200),
 ) -> go.Figure:
     """
-    Scout Score vs Market Value scatter (linear scale on Y, values in €M).
-    X = scout_score, Y = market_value_eur / 1e6 (€M).
-    OLS regression line = 'fair value' (fit in log10(€M) space, converted back to €M).
+    Scout Score vs Market Value scatter (log scale on Y, values in €M).
+    X = scout_score, Y = market_value_eur / 1e6 (€M, log scale).
+    OLS regression line = 'fair value' (fit in log10(€M) space — straight diagonal on log axis).
     Points below the line: undervalued. Points above: overpriced.
     x_range: (min, max) for x-axis in scout score units (0-100).
-    y_range_m: (min, max) for y-axis in €M.
     """
     fig = go.Figure()
     df = df.copy()
@@ -774,13 +772,13 @@ def scatter_chart(
             customdata=sub[["Player", "Squad", "Pos", "uv_score"]].values,
         ))
 
-    # Regression line: fit in log10(€M) space (correct for multiplicative MV relationships),
-    # then convert predicted log10(€M) values back to €M for the linear axis.
+    # Regression line: fit in log10(€M) space — on a log y-axis this renders as a
+    # straight diagonal bisecting the scatter. Spans full x-range for visual clarity.
     if len(df) >= 2:
         x_arr = df["scout_score"].values
         y_log = np.log10(df["_mv_m"].values)
         coeffs = np.polyfit(x_arr, y_log, 1)
-        x_line_arr = np.linspace(x_arr.min(), x_arr.max(), 100)
+        x_line_arr = np.linspace(0, 100, 200)
         y_line = 10 ** np.polyval(coeffs, x_line_arr)
         fig.add_trace(go.Scatter(
             x=x_line_arr,
@@ -829,10 +827,10 @@ def scatter_chart(
             tickfont=dict(color="#8DA4B8"),
         ),
         yaxis=dict(
-            title="MARKET VALUE (€M)",
-            range=[y_range_m[0], y_range_m[1]],
-            ticksuffix="M",
-            tickprefix="€",
+            title="MARKET VALUE",
+            type="log",
+            tickvals=[0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500],
+            ticktext=["€0.5M", "€1M", "€2M", "€5M", "€10M", "€20M", "€50M", "€100M", "€200M", "€500M"],
             gridcolor="rgba(255,255,255,0.06)",
             linecolor="rgba(255,255,255,0.1)",
             title_font=dict(color="#8DA4B8", size=11),
