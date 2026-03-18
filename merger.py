@@ -478,13 +478,16 @@ def attach_understat_xg(df: pd.DataFrame, understat_data: dict) -> pd.DataFrame:
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
-def build_dataset(fbref_data: dict, tm_data: pd.DataFrame) -> pd.DataFrame:
+def build_dataset(fbref_data: dict, tm_data: pd.DataFrame,
+                  understat_data: dict = None) -> pd.DataFrame:
     """
     Full merge pipeline: 9-table join → cross-season aggregation → filters →
-    per-90s → league position → market values.
+    understat xG/xA join → per-90s → league position → market values.
 
     fbref_data: {league: {season: {table_type: DataFrame}}}
     tm_data: Transfermarkt DataFrame with player_name_tm and market_value_eur
+    understat_data: optional {league: {season_label: DataFrame}} from run_understat_scrapers().
+                    If None, pipeline runs unchanged (backward compatible).
     """
     all_frames = []
 
@@ -513,13 +516,18 @@ def build_dataset(fbref_data: dict, tm_data: pd.DataFrame) -> pd.DataFrame:
             df = df[df["Player"].isin(current_players)].copy().reset_index(drop=True)
             print(f"  After current-season ({current_season}) filter: {len(df)} players")
 
-        # 3. Per-90 derivations
+        # 3. Attach Understat xG/xA (before per-90 derivations so compute_per90s derives xG_p90/xA_p90)
+        df["League"] = league  # set League before attach so it can filter by league
+        if understat_data is not None:
+            league_understat = {league: understat_data.get(league, {})}
+            df = attach_understat_xg(df, league_understat)
+
+        # 4. Per-90 derivations (xG_p90 and xA_p90 auto-derived if xG/xA columns present)
         df = compute_per90s(df)
 
-        # 4. League position (uses scrape_fbref_standings with cache)
+        # 5. League position (uses scrape_fbref_standings with cache)
         df = attach_league_position(df, league=league, season=current_season)
 
-        df["League"] = league
         all_frames.append(df)
 
     if not all_frames:

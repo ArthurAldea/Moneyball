@@ -23,7 +23,7 @@ from config import PILLARS_FW, PILLARS_MF, PILLARS_DF, GK_PILLARS, LEAGUE_QUALIT
 
 
 # ── Team Strength Adjustment constants (SCORE-04) ─────────────────────────────
-_DF_DEFENSIVE_STATS = ["Tkl_p90", "Int_p90", "Blocks_p90", "DuelsWon_p90", "Pres_p90"]
+_DF_DEFENSIVE_STATS = ["Tkl_p90", "Int_p90", "Blocks_p90"]
 _GK_RATE_STATS = ["Save%", "PSxG/SoT"]
 _TEAM_STRENGTH_MAGNITUDE = 0.10  # ±10%
 
@@ -335,7 +335,9 @@ def run_scoring_pipeline(fbref_data: dict,
         tm_data: Transfermarkt DataFrame from run_tm_scrapers
     """
     from merger import build_dataset
-    df = build_dataset(fbref_data, tm_data)
+    from scraper import run_understat_scrapers
+    understat_data = run_understat_scrapers()   # scrape xG/xA for all leagues
+    df = build_dataset(fbref_data, tm_data, understat_data=understat_data)
     if df.empty:
         return df
     print("[scorer] Applying team strength adjustment (SCORE-04)...")
