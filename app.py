@@ -824,14 +824,34 @@ elif selected_rows:
 else:
     active_players = pd.DataFrame()
 
-# Profile section — full implementation in Plan 02
+# ── Profile section (PROFILE-01 through PROFILE-05) ──────────────────────
 if not active_players.empty:
-    st.markdown(
-        "<div class='section-header' style='margin-top:24px;'>PLAYER PROFILE</div>",
-        unsafe_allow_html=True,
-    )
-    names = active_players["Player"].tolist()
-    st.caption(f"Selected: {', '.join(names)}")
+    # Stale-profile guard: if session state override is active but player is not
+    # in the current display_df (filtered out), show a notice and clear session state.
+    if st.session_state.get("profile_player"):
+        override_name = st.session_state["profile_player"]
+        if not display_df["Player"].str.contains(override_name, regex=False).any():
+            st.info(
+                f"**{override_name}** is not visible under the current filters. "
+                "Showing profile from full dataset."
+            )
+
+    # Single-player mode: render full profile
+    if len(active_players) == 1:
+        st.markdown(
+            "<div class='section-header' style='margin-top:24px;'>PLAYER PROFILE</div>",
+            unsafe_allow_html=True,
+        )
+        render_single_profile(active_players.iloc[0], full_df)
+
+    # Comparison mode (2–3 players) — implemented in Plan 03
+    else:
+        st.markdown(
+            "<div class='section-header' style='margin-top:24px;'>PLAYER PROFILE — COMPARISON</div>",
+            unsafe_allow_html=True,
+        )
+        names = active_players["Player"].tolist()
+        st.caption(f"Comparing: {', '.join(names)} — Full comparison view coming in next update.")
 
 # ── UV scatter plot (DASH-06) ─────────────────────────────────────────────────
 
