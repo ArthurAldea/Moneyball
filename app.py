@@ -819,7 +819,7 @@ def scatter_chart(
     fig.update_layout(
         **NAVY_LAYOUT,
         height=480,
-        dragmode="zoom",
+        dragmode="pan",
         xaxis=dict(
             title="SCOUT SCORE",
             range=[x_range[0], x_range[1]],
@@ -1075,30 +1075,35 @@ mv_max_m = max(int(np.ceil(full_df["market_value_eur"].max() / 1e7)) * 10, 200) 
 scout_x_range = st.session_state.get("scout_x_range", (0, 100))
 mv_y_range = st.session_state.get("mv_y_range", (0, mv_max_m))
 
+# Inject CSS for vertical y-slider via stable wrapper class
+st.markdown(
+    """<style>
+    /* Vertical slider: rotate the inner slider div inside our wrapper */
+    .mb-vert-slider [data-testid="stSlider"] > div {
+        transform: rotate(270deg);
+        transform-origin: center center;
+        width: 280px;
+        position: relative;
+        top: 130px;
+        left: -105px;
+    }
+    .mb-vert-slider [data-testid="stSlider"] {
+        height: 320px;
+        overflow: visible;
+    }
+    /* X-axis slider: remove extra top padding */
+    .mb-x-slider {
+        margin-top: -10px;
+    }
+    </style>""",
+    unsafe_allow_html=True,
+)
+
 # Column layout: narrow y-slider column (vertical, rotated) | chart column
 col_y, col_chart = st.columns([0.05, 0.95])
 
 with col_y:
-    # CSS to rotate this slider vertical (targets first column's slider in the horizontal block)
-    st.markdown(
-        """<style>
-        div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child
-          div[data-testid="stSlider"] > div {
-            transform: rotate(270deg) !important;
-            transform-origin: center center !important;
-            width: 300px !important;
-            position: relative !important;
-            top: 150px !important;
-            left: -110px !important;
-        }
-        div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child
-          div[data-testid="stSlider"] {
-            height: 320px !important;
-            overflow: visible !important;
-        }
-        </style>""",
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="mb-vert-slider">', unsafe_allow_html=True)
     st.slider(
         "Value (€M)",
         min_value=0,
@@ -1108,6 +1113,7 @@ with col_y:
         label_visibility="collapsed",
         key="mv_y_range",
     )
+    st.markdown("</div>", unsafe_allow_html=True)
 
 with col_chart:
     st.plotly_chart(
@@ -1125,19 +1131,18 @@ with col_chart:
             "toImageButtonOptions": {"format": "png", "filename": "moneyball_scatter"},
         },
     )
-
-# X-axis range slider — horizontal, below the chart
-st.markdown("<div style='margin-top:-8px;'>", unsafe_allow_html=True)
-st.slider(
-    "Scout Score Range",
-    min_value=0,
-    max_value=100,
-    value=scout_x_range,
-    step=1,
-    label_visibility="collapsed",
-    key="scout_x_range",
-)
-st.markdown("</div>", unsafe_allow_html=True)
+    # X-axis slider inside the chart column — matches chart width exactly
+    st.markdown('<div class="mb-x-slider">', unsafe_allow_html=True)
+    st.slider(
+        "Scout Score Range",
+        min_value=0,
+        max_value=100,
+        value=scout_x_range,
+        step=1,
+        label_visibility="collapsed",
+        key="scout_x_range",
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # DASH-07: cross-league disclaimer
 if should_show_disclaimer(sel_leagues):
