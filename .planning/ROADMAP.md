@@ -9,7 +9,7 @@
 | 3 | Multi-League Expansion | Complete    | 2026-03-17 | ✅ Complete |
 | 4 | Advanced Scoring | Apply team strength, league quality multiplier, and cosine similarity similar players | SCORE-04, SCORE-05, SCORE-08 | ✅ Complete |
 | 5 | 2/2 | Complete    | 2026-03-17 | Not Started |
-| 6 | Player Deep Profile | Add drill-down player profile with radar chart, full per-90 stat table with percentile bars, scatter highlight, similar players panel, multi-player comparison mode, and player name search filter | PROFILE-01, PROFILE-02, PROFILE-03, PROFILE-04, PROFILE-05, PROFILE-06, FILTER-07 | 🔄 In Progress (2/3 plans complete) |
+| 6 | 3/3 | Complete   | 2026-03-18 | 🔄 In Progress (2/3 plans complete) |
 
 ---
 
@@ -147,7 +147,7 @@ Plans:
 
 **Requirements:** PROFILE-01, PROFILE-02, PROFILE-03, PROFILE-04, PROFILE-05, PROFILE-06, FILTER-07
 
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 06-01-PLAN.md — Wave 0 test stubs + FILTER-07 (player name search) + multi-row selection
