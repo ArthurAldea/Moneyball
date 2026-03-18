@@ -168,7 +168,7 @@ Plans:
 **Goal:** Resurrect xG and xA per-90 stats from Understat for all 5 leagues x 2 seasons. Merge them into the FBref pipeline. Update the Attacking and Creation pillar weights in the scorer to incorporate xG_p90 and xA_p90 — improving the model's ability to reward prolific scorers like Haaland.
 **Requirements:** SCORE-01, DATA-01, DATA-05, DATA-06
 **Depends on:** Phase 6
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 06.1-01-PLAN.md — Wave 0 test stubs (scraper + merger) + config UNDERSTAT_LEAGUE_NAMES + scrape_understat_league() + run_understat_scrapers()
